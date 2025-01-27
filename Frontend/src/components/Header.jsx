@@ -1,6 +1,10 @@
 import React, { useContext } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Disclosure, DisclosureButton, DisclosurePanel } from "@headlessui/react";
+import {
+  Disclosure,
+  DisclosureButton,
+  DisclosurePanel
+} from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import { TbBasket, TbUserCircle } from "react-icons/tb";
 import { RiUserLine } from "react-icons/ri";
@@ -12,7 +16,10 @@ export default function Header() {
   const location = useLocation();
 
   return (
-    <Disclosure as="header" className="fixed top-0 left-0 w-full z-50 bg-white shadow-md">
+    <Disclosure
+      as="header"
+      className="fixed top-0 left-0 w-full z-50 bg-white shadow-md"
+    >
       {({ open }) => (
         <>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

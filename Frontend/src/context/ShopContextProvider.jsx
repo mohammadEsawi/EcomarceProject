@@ -1,26 +1,26 @@
-import React, { createContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { products } from './../assets/data';
-
+import React, { createContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { products } from "../assets/data";
 
 export const ShopContext = createContext({
-  currency: '$',
+  currency: "$",
   delivery_charges: 10,
-  navigate: () => {}, 
-  products: [], 
+  navigate: () => {},
+  products: [],
 });
 
 export default function ShopContextProvider(props) {
-  const currency = '$';
+  const currency = "$";
   const delivery_charges = 10;
   const navigate = useNavigate();
-  const [search, setSearch]=useState("");
-  const [showSearch ,setShowSearch] = useState(true);
-  const [token, setToken] = useState('');
+  const [search, setSearch] = useState("");
+  const [showSearch, setShowSearch] = useState(true);
+  const [token, setToken] = useState("");
+
   const value = {
     currency,
     delivery_charges,
-    navigate, 
+    navigate,
     products,
     token,
     setToken,
@@ -28,7 +28,6 @@ export default function ShopContextProvider(props) {
     setSearch,
     showSearch,
     setShowSearch,
-   
   };
 
   return (

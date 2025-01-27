@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect } from "react";
 import { ShopContext } from "../context/ShopContextProvider";
 import ShowSearch from "../components/ShowSearch";
-import Footer from './../components/Footer';
+import Footer from "./../components/Footer";
 import Item from "../components/Item";
 
 export default function Collections() {
@@ -15,7 +15,9 @@ export default function Collections() {
 
   const toggleFilter = (value, setter) => {
     setter((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value]
     );
   };
 
@@ -23,11 +25,15 @@ export default function Collections() {
     let filtered = [...products];
 
     if (category.length > 0) {
-      filtered = filtered.filter((product) => category.includes(product.category));
+      filtered = filtered.filter((product) =>
+        category.includes(product.category)
+      );
     }
 
     if (subCategory.length > 0) {
-      filtered = filtered.filter((product) => subCategory.includes(product.subCategory));
+      filtered = filtered.filter((product) =>
+        subCategory.includes(product.subCategory)
+      );
     }
 
     if (search.trim()) {
@@ -54,7 +60,10 @@ export default function Collections() {
 
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + itemsPerPage
+  );
 
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
@@ -76,7 +85,10 @@ export default function Collections() {
             <h5 className="h5 mb-4 text-black">Categories</h5>
             <div className="space-y-3">
               {["Men", "Women", "Kids"].map((cat) => (
-                <label key={cat} className="flex items-center gap-3 text-black-100 hover:text-white transition-colors">
+                <label
+                  key={cat}
+                  className="flex items-center gap-3 text-black-100 hover:text-white transition-colors"
+                >
                   <input
                     type="checkbox"
                     className="w-5 h-5 accent-secondary rounded-sm"
@@ -94,11 +106,16 @@ export default function Collections() {
             <h5 className="h5 mb-4 text-black">Product Types</h5>
             <div className="space-y-3">
               {["Topwear", "Bottomwear", "WinterWear"].map((type) => (
-                <label key={type} className="flex items-center gap-3 text-black-100 hover:text-white transition-colors">
+                <label
+                  key={type}
+                  className="flex items-center gap-3 text-black-100 hover:text-white transition-colors"
+                >
                   <input
                     type="checkbox"
                     className="w-5 h-5 accent-secondary rounded-sm"
-                    onChange={(e) => toggleFilter(e.target.value, setSubCategory)}
+                    onChange={(e) =>
+                      toggleFilter(e.target.value, setSubCategory)
+                    }
                     value={type}
                   />
                   <span className="font-medium">{type}</span>
@@ -115,7 +132,7 @@ export default function Collections() {
               onChange={(e) => setSortType(e.target.value)}
               className="w-full p-3 rounded-lg bg-white border-2 border-gray-200 focus:border-secondary focus:ring-2 focus:ring-secondary"
             >
-              {[ 
+              {[
                 { value: "relevant", label: "Relevant" },
                 { value: "price", label: "Price: Low to High" },
                 { value: "price_desc", label: "Price: High to Low" }
@@ -138,7 +155,9 @@ export default function Collections() {
               ))
             ) : (
               <div className="col-span-full text-center py-12">
-                <p className="text-gray-500 text-lg">No products found matching your criteria</p>
+                <p className="text-gray-500 text-lg">
+                  No products found matching your criteria
+                </p>
               </div>
             )}
           </div>
@@ -158,16 +177,16 @@ export default function Collections() {
                 const page = i + 1;
                 const isCurrent = page === currentPage;
                 const isNear = Math.abs(page - currentPage) <= 2;
-                
+
                 if (isNear || page === 1 || page === totalPages) {
                   return (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
                       className={`px-4 py-2 text-sm font-medium border-2 rounded-lg ${
-                        isCurrent 
-                          ? 'bg-secondary border-secondary text-white'
-                          : 'text-secondary border-secondary hover:bg-secondary/10'
+                        isCurrent
+                          ? "bg-secondary border-secondary text-white"
+                          : "text-secondary border-secondary hover:bg-secondary/10"
                       }`}
                     >
                       {page}
