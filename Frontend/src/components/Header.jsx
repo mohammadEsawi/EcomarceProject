@@ -12,7 +12,7 @@ import { ShopContext } from "../context/ShopContextProvider";
 import Navbar from "./Navbar";
 
 export default function Header() {
-  const { token } = useContext(ShopContext);
+  const { token, getCartCount} = useContext(ShopContext);
   const location = useLocation();
 
   return (
@@ -42,7 +42,7 @@ export default function Header() {
                 <Link to="/cart" className="flex relative">
                   <TbBasket className="text-2xl sm:text-[27px]" />
                   <span className="absolute -top-2 -right-2 bg-secondary text-white text-xs font-semibold flexCenter w-5 h-5 rounded-full shadow-md">
-                    0
+                    {getCartCount()}
                   </span>
                 </Link>
 

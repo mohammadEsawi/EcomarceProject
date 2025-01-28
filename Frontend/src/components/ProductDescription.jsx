@@ -4,15 +4,15 @@ import { motion } from 'framer-motion';
 
 const CareInstruction = ({ icon: Icon, title, description }) => (
   <motion.div 
-    whileHover={{ y: -2 }}
-    className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg transition-colors hover:bg-gray-100"
+    whileHover={{ y: -3 }}
+    className="flex items-start gap-4 p-4 bg-white rounded-lg transition-all hover:bg-secondary hover:text-white"
   >
-    <div className="p-2 bg-white rounded-lg shadow-sm text-primary">
+    <div className="p-2 bg-white rounded-lg shadow-sm text-black hover:bg-white">
       <Icon className="w-5 h-5" />
     </div>
     <div>
-      <h4 className="font-semibold text-gray-900">{title}</h4>
-      <p className="mt-1 text-sm text-gray-600">{description}</p>
+      <h4 className="font-semibold text-gray-900 hover:text-white">{title}</h4>
+      <p className="mt-1 text-sm text-gray-600 hover:text-white">{description}</p>
     </div>
   </motion.div>
 );
@@ -27,7 +27,7 @@ export default function ProductDescription() {
               key={tab}
               className={({ selected }) =>
                 `relative px-1 pb-3 text-lg font-medium focus:outline-none transition-colors ${
-                  selected ? 'text-gray-900' : 'text-gray-500 hover:text-gray-700'
+                  selected ? 'text-gray-900' : 'text-black hover:text-gray-700'
                 }`
               }
             >
@@ -90,9 +90,9 @@ export default function ProductDescription() {
                     { label: 'Recycled Polyester Thread', cert: 'GRS Certified' },
                     { label: 'Low-Impact Production', cert: 'ISO 14001 Certified' }
                   ].map((material, idx) => (
-                    <div key={idx} className="p-4 bg-white rounded-lg">
-                      <p className="font-medium text-gray-900">{material.label}</p>
-                      <p className="mt-1 text-sm text-gray-500">{material.cert}</p>
+                    <div key={idx} className="p-4 bg-white rounded-lg hover:bg-secondary hover:text-white transition-all">
+                      <p className="font-medium text-gray-900 hover:text-white">{material.label}</p>
+                      <p className="mt-1 text-sm text-gray-500 hover:text-white">{material.cert}</p>
                     </div>
                   ))}
                 </div>
@@ -114,9 +114,9 @@ export default function ProductDescription() {
                 description="Line dry in shade. Avoid direct sunlight to prevent color fading."
               />
 
-              <div className="p-6 bg-white rounded-lg">
-                <h4 className="font-semibold text-gray-900">Pro Tips</h4>
-                <ul className="mt-3 space-y-2 text-sm text-black">
+              <div className="p-6 bg-white rounded-lg hover:bg-secondary hover:text-white transition-all">
+                <h4 className="font-semibold text-gray-900 hover:text-white">Pro Tips</h4>
+                <ul className="mt-3 space-y-2 text-sm">
                   <li>• Iron inside-out on medium heat</li>
                   <li>• Avoid bleach and fabric softeners</li>
                   <li>• Wash before first use for optimal softness</li>

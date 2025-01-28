@@ -9,11 +9,12 @@ import Footer from "../components/Footer";
 import ProductDescription from "../components/ProductDescription";
 import { ProductFeatures } from "../components/ProductFeatures";
 import RelatedProduct from "../components/RelatedProduct";
+import { toast } from "react-toastify";
 
 
 export default function Product() {
   const { productId } = useParams();
-  const { products, currency } = useContext(ShopContext);
+  const { products, currency ,addToCart} = useContext(ShopContext);
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
   const [selectedSize, setSelectedSize] = useState("");
@@ -127,7 +128,7 @@ export default function Product() {
                     onClick={() => setSelectedSize(size)}
                     className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
                       selectedSize === size
-                        ? "bg-gray-700 text-white"
+                        ? "bg-secondary text-white"
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                     }`}
                   >
@@ -139,10 +140,19 @@ export default function Product() {
 
             {/* Action Buttons */}
             <div className="flex gap-3 mb-8">
-              <button className="flex-1 bg-secondary hover:bg-secondary-500 text-white py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center gap-2">
-                <TbShoppingBagPlus className="w-5 h-5" />
-                Add to Cart
-              </button>
+            <button 
+  onClick={() => {
+    if (!selectedSize) {
+      toast.error("Please select a size first");
+      return;
+    }
+    addToCart(product._id, selectedSize);
+  }}
+  className="flex-1 bg-secondary hover:bg-secondary-500 text-white py-3 px-6 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+>
+  <TbShoppingBagPlus className="w-5 h-5" />
+  Add to Cart
+</button>
               <button className="p-3 rounded-lg border border-gray-200 hover:bg-secondary transition-colors">
                 <FaHeart className={`w-6 h-6 ${isWishlisted ? 'text-red-500' : 'text-gray-400'}`} />
               </button>
@@ -181,8 +191,8 @@ export default function Product() {
         <div className="mt-16 space-y-16">
           <ProductDescription/>
           <ProductFeatures/>
-          <RelatedProduct/>
-        </div>
+          <RelatedProduct currentProductId={productId || product?._id} />
+          </div>
       </div>
       <Footer />
     </div>

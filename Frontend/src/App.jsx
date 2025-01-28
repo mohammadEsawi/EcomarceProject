@@ -6,19 +6,27 @@ import Product from './pages/Product';
 import Testimonials from './pages/Testimonials';
 import Contact from './pages/Contact';
 import Collections from './pages/Collections';
+import Cart from './pages/Cart';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function App() {
   
   return (
     <main className='overflow-hidden text-[]#40404]'>
+      <ToastContainer />
   
       <Header />
       <Routes>
         <Route exact path="/" element={<Home />} />
         <Route path="/collections" element={<Collections />} />
-        <Route exact path="/product/:productId" element={<Product />} />
+        <Route path="/product/:productId" element={<Product />} />
         <Route exact path="/testimonials" element={<Testimonials />} />
         <Route exact path="/contact" element={<Contact />} />
+        <Route exact path="/cart" element={<Cart />} />
+        <Route exact path="/place-order" element={<PlaceOrder />} />
+
+
       </Routes>
   
     </main>
