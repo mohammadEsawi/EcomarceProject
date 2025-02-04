@@ -13,6 +13,7 @@ import PlaceOrder from './pages/PlaceOrder';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
+import Orders from './pages/Orders';
 
 export default function App() {
   
@@ -25,13 +26,13 @@ export default function App() {
         <Route exact path="/" element={<Home />} />
         <Route path="/collections" element={<Collections />} />
         <Route path="/product/:productId" element={<Product />} />
-        <Route exact path="/testimonials" element={<Testimonials />} />
+        <Route exact path="/testimonial" element={<Testimonials />} />
         <Route exact path="/contact" element={<Contact />} />
         <Route exact path="/cart" element={<Cart />} />
         <Route exact path="/login" element={<Login />} />
         <Route exact path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-
+        <Route path="/orders" element={<Orders />} />
         <Route exact path="/place-order" element={<PlaceOrder />} />
 
 

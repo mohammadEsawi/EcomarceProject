@@ -19,7 +19,7 @@ export default function ShopContextProvider({ children }) {
 
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(true);
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState("fs");
   const [cartItems, setCartItems] = useState({});
   const addToCart = (itemId, size) => {
     if (!size) {
@@ -65,7 +65,7 @@ export default function ShopContextProvider({ children }) {
   useEffect(() => {
 
   }, [cartItems]);
-  
+
   const updateQuantities = async(itemId, size, quantity) => {
     setCartItems((prevCartItems) => {
       const updatedCartItems = {...prevCartItems };

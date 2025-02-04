@@ -34,7 +34,7 @@ export default function Login() {
       // Add your authentication logic here
       // await authService.login(email, password);
       toast.success('Login successful!');
-      navigate('/dashboard');
+      navigate('/');
     } catch (err) {
       setError(err.message || 'Login failed. Please check your credentials.');
       toast.error('Login failed');
