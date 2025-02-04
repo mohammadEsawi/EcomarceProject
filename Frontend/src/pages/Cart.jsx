@@ -2,6 +2,9 @@ import React, { useContext, useEffect, useState } from 'react';
 import { ShopContext } from "../context/ShopContextProvider";
 import { FaMinus, FaPlus, FaTimes } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import Footer from '../components/Footer';
+import CartTotal from '../components/CartTotal';  // Import the CartTotal component
+import { toast } from "react-toastify";
 
 export default function Cart() {
     const { products, currency, cartItems, getCartCount, updateQuantities, removeItem, navigate } = useContext(ShopContext);
@@ -61,7 +64,7 @@ export default function Cart() {
                     {/* Enhanced Header Section */}
                     <div className="mb-12 text-center">
                         <h1 className="text-4xl font-serif font-bold text-gray-900 mb-2">
-                            Your <span className='text-secondary' >Shopping</span> Cart
+                            Your <span className='text-secondary'>Shopping</span> Cart
                         </h1>
                         <div className="flex items-center justify-center space-x-4 mt-4">
                             <p className="text-lg text-gray-600">
@@ -130,11 +133,14 @@ export default function Cart() {
                                                             </div>
                                                         </div>
                                                         <button 
-                                                            onClick={() => updateQuantities(item._id, item.size,0)}
-                                                            className="text-gray-400 hover:text-red-600 transition-colors p-2 -mt-2 -mr-2"
-                                                            title="Remove item"
+                                                        onClick={() => {
+                                                            updateQuantities(item._id, item.size, 0);
+                                                            toast.error(`${productData.name} (Size: ${item.size}) removed from cart.`);
+                                                        }}
+                                                        className="text-gray-400 hover:text-red-600 transition-colors p-2 -mt-2 -mr-2"
+                                                        title="Remove item"
                                                         >
-                                                            <FaTimes className="h-6 w-6" />
+                                                        <FaTimes className="h-6 w-6" />
                                                         </button>
                                                     </div>
 
@@ -167,47 +173,32 @@ export default function Cart() {
                                 })}
                             </div>
 
-                            {/* Sticky Checkout Summary */}
-                            <div className="sticky bottom-0 bg-white border-t border-gray-100">
-                                <div className="px-6 py-6 bg-gradient-to-r from-indigo-50 to-blue-50">
-                                    <div className="max-w-xl ml-auto">
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between">
-                                                <span>Subtotal:</span>
-                                                <span>{currency}{subtotal.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span>Shipping:</span>
-                                                <span>{currency}{shippingFee.toFixed(2)}</span>
-                                            </div>
-                                            <div className="flex justify-between text-2xl font-bold text-gray-900">
-                                                <span>Total:</span>
-                                                <span>{currency}{total.toFixed(2)}</span>
-                                            </div>
-                                            <p className="text-sm text-gray-500 text-right">
-                                                Includes VAT. Shipping calculated at checkout
-                                            </p>
-                                            <div className="flex flex-col space-y-4">
-                                                <button onClick={()=>navigate('/place-order')}
-                                                    className="w-full bg-black text-white py-4 px-8 rounded-xl hover:shadow-lg transition-all hover:scale-[1.02]"
-                                                >
-                                                    Proceed to Checkout
-                                                </button>
-                                                <button
-                                                    onClick={() => navigate('/collections')}
-                                                    className="text-black hover:text-secondary text-sm font-medium text-center"
-                                                >
-                                                    ← Continue Shopping
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                            <CartTotal 
+                                subtotal={subtotal} 
+                                shippingFee={shippingFee} 
+                                total={total} 
+                                currency={currency} 
+                                navigate={navigate}
+                            />
+                               <div className="flex flex-col space-y-4">
+                            <button 
+                                onClick={() => navigate('/place-order')}
+                                className="w-full bg-black text-white py-4 px-8 rounded-xl hover:shadow-lg transition-all hover:scale-[1.02]"
+                            >
+                                Proceed to Checkout
+                            </button>
+                            <button 
+                                onClick={() => navigate('/collections')}
+                                className="text-black hover:text-secondary text-sm font-medium text-center"
+                            >
+                                ← Continue Shopping
+                            </button>
+                        </div>
                         </div>
                     )}
                 </div>
             </div>
+            <Footer />
         </div>
     );
 }

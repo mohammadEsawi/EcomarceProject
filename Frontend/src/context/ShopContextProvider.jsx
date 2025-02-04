@@ -26,10 +26,16 @@ export default function ShopContextProvider({ children }) {
       toast.error("Please select a size before adding to the cart.");
       return;
     }
-
+  
+    const product = products.find(p => p._id === itemId);
+    if (!product) {
+      toast.error("Product not found.");
+      return;
+    }
+  
     setCartItems((prevCartItems) => {
       const updatedCartItems = { ...prevCartItems };
-
+  
       if (updatedCartItems[itemId]) {
         if (updatedCartItems[itemId][size]) {
           updatedCartItems[itemId][size] += 1;
@@ -39,11 +45,12 @@ export default function ShopContextProvider({ children }) {
       } else {
         updatedCartItems[itemId] = { [size]: 1 };
       }
-
+  
       return updatedCartItems;
     });
+  
+    toast.success(`${product.name} (Size: ${size}) added to cart!`);
   };
-
   // Get cart count 
   const getCartCount = () => {
     let totalCount = 0;
@@ -58,7 +65,7 @@ export default function ShopContextProvider({ children }) {
   useEffect(() => {
 
   }, [cartItems]);
-  // update the quantity
+  
   const updateQuantities = async(itemId, size, quantity) => {
     setCartItems((prevCartItems) => {
       const updatedCartItems = {...prevCartItems };
@@ -84,6 +91,7 @@ export default function ShopContextProvider({ children }) {
     cartItems,
     setCartItems,
     updateQuantities,
+    
     
   };
 

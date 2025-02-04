@@ -9,6 +9,10 @@ import Collections from './pages/Collections';
 import Cart from './pages/Cart';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import PlaceOrder from './pages/PlaceOrder';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
 
 export default function App() {
   
@@ -24,6 +28,10 @@ export default function App() {
         <Route exact path="/testimonials" element={<Testimonials />} />
         <Route exact path="/contact" element={<Contact />} />
         <Route exact path="/cart" element={<Cart />} />
+        <Route exact path="/login" element={<Login />} />
+        <Route exact path="/signup" element={<Signup />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
         <Route exact path="/place-order" element={<PlaceOrder />} />
 
 

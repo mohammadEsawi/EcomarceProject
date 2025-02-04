@@ -12,7 +12,7 @@ export default function HeroSection() {
           <h2 className="text-6xl font-bold mb-4">Fashion Look</h2>
           <h3 className="text-4xl font-semibold mb-8">More Charming</h3>
           <Link
-            
+            to={'/collections'}
             className="inline-block bg-secondary text-white px-8 py-3 rounded-full text-lg font-medium hover:bg-gray-200 transition-all"
           >
             Check our modern Collection

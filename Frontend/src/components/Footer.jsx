@@ -4,7 +4,7 @@ import { FaLocationDot, FaPhone, FaQuestion } from 'react-icons/fa6'
 
 const Footer = () => {
     return (
-        <footer>
+        <footer className='mt-10'>
             <div className='max-padd-container flex items-start justify-between flex-col lg:flex-row gap-8 py-6 mb-7 bg-primary'>
                 <div>
                     <h4 className='h4'>We are always here to help</h4>

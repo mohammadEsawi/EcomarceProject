@@ -48,15 +48,15 @@ export default function Header() {
 
                 {/* User */}
                 <div>
-                  {token ? (
-                    <TbUserCircle className="text-2xl cursor-pointer" />
-                  ) : (
-                    <button className="flex items-center gap-x-1">
-                      <span className="hidden sm:block">Login</span>
-                      <RiUserLine className="text-xl" />
-                    </button>
-                  )}
-                </div>
+                {token ? (
+                  <TbUserCircle className="text-2xl cursor-pointer" />
+                ) : (
+                  <Link to="/login" className="flex items-center gap-x-1 hover:text-secondary transition-colors">
+                    <span className="hidden sm:block">Login</span>
+                    <RiUserLine className="text-xl" />
+                  </Link>
+                )}
+              </div>
 
                 {/* Mobile Menu Button */}
                 <DisclosureButton className="lg:hidden p-2 text-gray-700 rounded-md hover:bg-gray-100">
