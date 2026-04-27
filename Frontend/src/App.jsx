@@ -19,7 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 
 export default function App() {
   return (
-    <main className="overflow-hidden text-[]#40404]">
+    <main className="overflow-hidden text-[#40404d]">
       <ToastContainer />
 
       <Header />

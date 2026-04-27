@@ -1,12 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
+  createAdminAccount,
   createProduct,
   deleteProduct,
   getProducts,
   updateProduct,
 } from "../api/client";
+import { ShopContext } from "../context/ShopContextProvider";
 
 const initialForm = {
   name: "",
@@ -20,13 +23,19 @@ const initialForm = {
 };
 
 export default function AdminDashboard() {
+  const { adminToken, adminUser, adminLogout } = useContext(ShopContext);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(initialForm);
   const [editingId, setEditingId] = useState(null);
+  const [adminForm, setAdminForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+  const [creatingAdmin, setCreatingAdmin] = useState(false);
   const navigate = useNavigate();
-  const adminToken = localStorage.getItem("adminToken");
 
   useEffect(() => {
     if (!adminToken) {
@@ -57,7 +66,7 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
+    adminLogout();
     navigate("/admin/login");
   };
 
@@ -132,6 +141,30 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleCreateAdmin = async (event) => {
+    event.preventDefault();
+    if (!adminToken) return;
+
+    try {
+      setCreatingAdmin(true);
+      await createAdminAccount(
+        {
+          name: adminForm.name.trim(),
+          email: adminForm.email.trim(),
+          password: adminForm.password,
+        },
+        adminToken,
+      );
+
+      setAdminForm({ name: "", email: "", password: "" });
+      toast.success("Admin account created");
+    } catch (error) {
+      toast.error(error.message || "Failed to create admin account");
+    } finally {
+      setCreatingAdmin(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 mt-8 py-8">
       <div className="max-w-7xl mx-auto px-4 space-y-6">
@@ -143,6 +176,11 @@ export default function AdminDashboard() {
             <p className="text-sm text-gray-500">
               Manage clothes inventory with full CRUD.
             </p>
+            {adminUser && (
+              <p className="text-xs text-gray-400 mt-1">
+                Signed in as {adminUser.email}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -280,6 +318,55 @@ export default function AdminDashboard() {
                 )}
               </div>
             </form>
+
+            <div className="mt-8 border-t pt-6">
+              <h3 className="text-md font-semibold mb-3">
+                Create Admin Account
+              </h3>
+              <form onSubmit={handleCreateAdmin} className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Admin full name"
+                  value={adminForm.name}
+                  onChange={(e) =>
+                    setAdminForm((prev) => ({ ...prev, name: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  required
+                />
+                <input
+                  type="email"
+                  placeholder="Admin email"
+                  value={adminForm.email}
+                  onChange={(e) =>
+                    setAdminForm((prev) => ({ ...prev, email: e.target.value }))
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Admin password (min 8 chars)"
+                  value={adminForm.password}
+                  onChange={(e) =>
+                    setAdminForm((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                  minLength={8}
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={creatingAdmin}
+                  className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
+                >
+                  {creatingAdmin ? "Creating admin..." : "Create Admin"}
+                </button>
+              </form>
+            </div>
           </div>
 
           <div className="lg:col-span-3 bg-white rounded-xl shadow-sm p-5">

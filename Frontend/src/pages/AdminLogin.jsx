@@ -1,20 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { adminLogin } from "../api/client";
+import { ShopContext } from "../context/ShopContextProvider";
 
 export default function AdminLogin() {
+  const { adminToken, setAdminToken, setAdminUser } = useContext(ShopContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    if (token) {
+    if (adminToken) {
       navigate("/admin/dashboard");
     }
-  }, [navigate]);
+  }, [adminToken, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -22,7 +23,8 @@ export default function AdminLogin() {
 
     try {
       const data = await adminLogin(email, password);
-      localStorage.setItem("adminToken", data.token);
+      setAdminToken(data.token);
+      setAdminUser(data.admin);
       toast.success("Admin login successful");
       navigate("/admin/dashboard");
     } catch (error) {

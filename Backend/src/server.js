@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import productsRouter from "./routes/products.js";
 import adminRouter from "./routes/admin.js";
+import authRouter from "./routes/auth.js";
+import ordersRouter from "./routes/orders.js";
 
 dotenv.config();
 
@@ -22,7 +24,9 @@ app.get("/api/health", (_, res) => {
 });
 
 app.use("/api/admin", adminRouter);
+app.use("/api/auth", authRouter);
 app.use("/api/products", productsRouter);
+app.use("/api/orders", ordersRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);

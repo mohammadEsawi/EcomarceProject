@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { products as localProducts } from "../assets/data";
 import { toast } from "react-toastify";
+import { getCurrentUser } from "../api/client";
 
 export const ShopContext = createContext({
   currency: "$",
@@ -21,6 +22,14 @@ export default function ShopContextProvider({ children }) {
   const [search, setSearch] = useState("");
   const [showSearch, setShowSearch] = useState(true);
   const [token, setToken] = useState(() => localStorage.getItem("authToken"));
+  const [user, setUser] = useState(null);
+  const [adminToken, setAdminToken] = useState(() =>
+    localStorage.getItem("adminToken"),
+  );
+  const [adminUser, setAdminUser] = useState(() => {
+    const raw = localStorage.getItem("adminUser");
+    return raw ? JSON.parse(raw) : null;
+  });
   const [products, setProducts] = useState([]);
   const [cartItems, setCartItems] = useState(() => {
     const raw = localStorage.getItem("cartItems");
@@ -55,7 +64,38 @@ export default function ShopContextProvider({ children }) {
       localStorage.setItem("authToken", token);
     } else {
       localStorage.removeItem("authToken");
+      setUser(null);
     }
+  }, [token]);
+
+  useEffect(() => {
+    if (adminToken) {
+      localStorage.setItem("adminToken", adminToken);
+    } else {
+      localStorage.removeItem("adminToken");
+      setAdminUser(null);
+      localStorage.removeItem("adminUser");
+    }
+  }, [adminToken]);
+
+  useEffect(() => {
+    if (adminUser) {
+      localStorage.setItem("adminUser", JSON.stringify(adminUser));
+    }
+  }, [adminUser]);
+
+  useEffect(() => {
+    async function loadUser() {
+      if (!token) return;
+      try {
+        const data = await getCurrentUser(token);
+        setUser(data.user);
+      } catch {
+        setToken(null);
+      }
+    }
+
+    loadUser();
   }, [token]);
 
   const addToCart = (itemId, size) => {
@@ -120,6 +160,20 @@ export default function ShopContextProvider({ children }) {
     updateQuantities(itemId, size, 0);
   };
 
+  const logout = () => {
+    setToken(null);
+    setUser(null);
+    setCartItems({});
+    localStorage.removeItem("authToken");
+  };
+
+  const adminLogout = () => {
+    setAdminToken(null);
+    setAdminUser(null);
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("adminUser");
+  };
+
   const value = {
     currency,
     delivery_charges,
@@ -127,6 +181,12 @@ export default function ShopContextProvider({ children }) {
     products,
     token,
     setToken,
+    user,
+    setUser,
+    adminToken,
+    setAdminToken,
+    adminUser,
+    setAdminUser,
     search,
     setSearch,
     showSearch,
@@ -137,6 +197,8 @@ export default function ShopContextProvider({ children }) {
     setCartItems,
     updateQuantities,
     removeItem,
+    logout,
+    adminLogout,
   };
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;

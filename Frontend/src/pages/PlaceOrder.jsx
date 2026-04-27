@@ -1,11 +1,21 @@
 import React, { useContext, useState } from "react";
 import { ShopContext } from "../context/ShopContextProvider";
 import { Link } from "react-router-dom";
-import Footer from '../components/Footer'
+import Footer from "../components/Footer";
 import CartTotal from "../components/CartTotal";
+import { toast } from "react-toastify";
+import { createOrder } from "../api/client";
 
 export default function PlaceOrder() {
-  const { currency, total, cartItems, products, delivery_charges, navigate, token, getCartCount } = useContext(ShopContext);
+  const {
+    currency,
+    cartItems,
+    products,
+    delivery_charges,
+    navigate,
+    token,
+    setCartItems,
+  } = useContext(ShopContext);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -15,18 +25,22 @@ export default function PlaceOrder() {
     city: "",
     state: "",
     zipCode: "",
-    country: ""
+    country: "",
   });
   const [paymentMethod, setPaymentMethod] = useState("stripe");
+  const [submitting, setSubmitting] = useState(false);
 
   const calculateSubtotal = () => {
     return Object.entries(cartItems).reduce((sum, [productId, sizes]) => {
       const product = (products || []).find((p) => p._id === productId);
       if (!product) return sum;
 
-      return sum + Object.entries(sizes).reduce((subSum, [size, quantity]) => {
-        return subSum + (product.price * quantity);
-      }, 0);
+      return (
+        sum +
+        Object.entries(sizes).reduce((subSum, [size, quantity]) => {
+          return subSum + product.price * quantity;
+        }, 0)
+      );
     }, 0);
   };
 
@@ -39,15 +53,62 @@ export default function PlaceOrder() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const orderData = {
-      ...formData,
+
+    if (!token) {
+      toast.error("Please login first to place an order");
+      navigate("/login");
+      return;
+    }
+
+    const normalizedItems = Object.entries(cartItems || {}).flatMap(
+      ([productId, sizes]) => {
+        const product = (products || []).find((p) => p._id === productId);
+        if (!product) return [];
+
+        return Object.entries(sizes)
+          .filter(([, quantity]) => quantity > 0)
+          .map(([size, quantity]) => ({
+            productId,
+            name: product.name,
+            image: Array.isArray(product.image) ? product.image[0] : "",
+            size,
+            quantity,
+            price: Number(product.price || 0),
+          }));
+      },
+    );
+
+    if (normalizedItems.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
+    const orderPayload = {
+      shippingAddress: {
+        ...formData,
+      },
       paymentMethod,
-      items: cartItems || {},
-      total: totalAmount || 0
+      items: normalizedItems,
+      totals: {
+        subtotal,
+        shippingFee,
+        total: totalAmount,
+      },
     };
-    console.log("Order Data:", orderData);
+
+    try {
+      setSubmitting(true);
+      await createOrder(orderPayload, token);
+      setCartItems({});
+      toast.success("Order placed successfully");
+      navigate("/orders");
+    } catch (error) {
+      toast.error(error.message || "Failed to place order");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -301,7 +362,7 @@ export default function PlaceOrder() {
                 {cartItems &&
                   Object.entries(cartItems).map(([productId, sizes]) => {
                     const product = (products || []).find(
-                      (p) => p._id === productId
+                      (p) => p._id === productId,
                     );
                     if (!product) return null;
 
@@ -333,7 +394,7 @@ export default function PlaceOrder() {
                               </p>
                             </div>
                           </div>
-                        )
+                        ),
                     );
                   })}
               </div>
@@ -348,9 +409,10 @@ export default function PlaceOrder() {
 
               <button
                 type="submit"
+                disabled={submitting}
                 className="w-full mt-8 bg-black text-white py-3.5 px-8 rounded-lg font-medium hover:bg-secondary transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
-                Place Order
+                {submitting ? "Placing order..." : "Place Order"}
               </button>
 
               <p className="mt-4 text-sm text-gray-500 text-center">
@@ -369,5 +431,4 @@ export default function PlaceOrder() {
       <Footer />
     </div>
   );
-  
 }

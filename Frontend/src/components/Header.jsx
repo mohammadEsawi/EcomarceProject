@@ -12,7 +12,7 @@ import { ShopContext } from "../context/ShopContextProvider";
 import Navbar from "./Navbar";
 
 export default function Header() {
-  const { token, getCartCount, setToken } = useContext(ShopContext);
+  const { token, getCartCount, logout } = useContext(ShopContext);
   const location = useLocation();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -43,8 +43,7 @@ export default function Header() {
   };
 
   const handleLogout = () => {
-    setToken(null);
-    localStorage.removeItem("authToken");
+    logout();
     navigate("/login");
   };
 
