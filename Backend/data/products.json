@@ -1,0 +1,38 @@
+[
+  {
+    "_id": "1",
+    "name": "Elegant Cotton Round Neck Top",
+    "description": "Lightweight cotton top for casual outings.",
+    "price": 150,
+    "image": ["https://placehold.co/600x800?text=Top"],
+    "category": "Women",
+    "subCategory": "Topwear",
+    "sizes": ["S", "M", "L"],
+    "date": 1716634345448,
+    "popular": false
+  },
+  {
+    "_id": "2",
+    "name": "Men Premium Cotton Tee",
+    "description": "Premium shirt with smooth cotton texture.",
+    "price": 220,
+    "image": ["https://placehold.co/600x800?text=Tee"],
+    "category": "Men",
+    "subCategory": "WinterWear",
+    "sizes": ["M", "L", "XL"],
+    "date": 1716621345448,
+    "popular": true
+  },
+  {
+    "_id": "3",
+    "name": "Casual Kids Cotton Top",
+    "description": "Soft cotton top for everyday comfort.",
+    "price": 200,
+    "image": ["https://placehold.co/600x800?text=Kids"],
+    "category": "Kids",
+    "subCategory": "Topwear",
+    "sizes": ["S", "M", "L"],
+    "date": 1716234545448,
+    "popular": false
+  }
+]
