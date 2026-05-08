@@ -9,7 +9,7 @@ async function apiFetch(path, options = {}) {
   const isJson = response.headers.get('content-type')?.includes('application/json');
   const data = isJson ? await response.json() : null;
   if (!response.ok) throw new Error(data?.message || `Request failed: ${response.status}`);
-  return data;
+  return data?.data ?? data;
 }
 
 function authHeader(token) {
@@ -57,6 +57,7 @@ export const uploadProductImages = async (productId, files, token) => {
 export const getDashboardStats = (token) => apiFetch('/admin/dashboard', { headers: authHeader(token) });
 export const createAdminAccount = (payload, token) => apiFetch('/admin/accounts', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
 export const getAdminProfile = (token) => apiFetch('/admin/profile', { headers: authHeader(token) });
+export const getAdminUsers = (token, params = {}) => { const qs = new URLSearchParams(params).toString(); return apiFetch(`/admin/users${qs ? `?${qs}` : ''}`, { headers: authHeader(token) }); };
 
 // ORDERS
 export const createOrder = (payload, token) => apiFetch('/orders', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });

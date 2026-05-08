@@ -66,7 +66,8 @@ export async function getDashboardStats(req, res) {
                 o.status,
                 o.total_amount,
                 o.created_at,
-                u.email AS user_email
+                u.email    AS customer_email,
+                u.name     AS customer_name
          FROM   orders o
          LEFT   JOIN users u ON u.id = o.user_id
          ORDER  BY o.created_at DESC
@@ -75,14 +76,14 @@ export async function getDashboardStats(req, res) {
     ]);
 
     return api.success(res, {
-      total_products:     productsRes.rows[0].total,
-      total_orders:       ordersRes.rows[0].total,
-      total_revenue:      parseFloat(revenueRes.rows[0].total_revenue),
-      pending_orders:     pendingRes.rows[0].total,
-      low_stock_products: lowStockRes.rows[0].total,
-      out_of_stock_products: outOfStockRes.rows[0].total,
+      total_products:       productsRes.rows[0].total,
+      total_orders:         ordersRes.rows[0].total,
+      total_revenue:        parseFloat(revenueRes.rows[0].total_revenue),
+      pending_orders:       pendingRes.rows[0].total,
+      low_stock_items:      lowStockRes.rows[0].total,
+      out_of_stock_items:   outOfStockRes.rows[0].total,
       top_selling_products: topProductsRes.rows,
-      recent_orders:      recentOrdersRes.rows,
+      recent_orders:        recentOrdersRes.rows,
     });
   } catch (err) {
     console.error('[getDashboardStats]', err);
@@ -125,6 +126,39 @@ export async function createAdminAccount(req, res) {
   } catch (err) {
     console.error('[createAdminAccount]', err);
     return api.error(res, 'Failed to create admin account', 500);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/admin/users  (admin)
+// ---------------------------------------------------------------------------
+export async function getAllUsers(req, res) {
+  try {
+    const page  = Math.max(1, parseInt(req.query.page  ?? 1, 10));
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit ?? 20, 10)));
+    const offset = (page - 1) * limit;
+
+    const { rows } = await query(
+      `SELECT id, name, email, role, phone, created_at
+         FROM users
+        ORDER BY created_at DESC
+        LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    );
+    const countRes = await query(`SELECT COUNT(*)::INT AS total FROM users`);
+
+    return api.success(res, {
+      users: rows,
+      pagination: {
+        page,
+        limit,
+        total: countRes.rows[0].total,
+        total_pages: Math.ceil(countRes.rows[0].total / limit),
+      },
+    });
+  } catch (err) {
+    console.error('[getAllUsers]', err);
+    return api.error(res, 'Failed to fetch users', 500);
   }
 }
 

@@ -42,6 +42,11 @@ export default function SignupPage() {
       return false;
     }
 
+    if (!/\d/.test(password)) {
+      setError("Password must contain at least one number");
+      return false;
+    }
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return false;
@@ -181,6 +186,7 @@ export default function SignupPage() {
                     )}
                   </button>
                 </div>
+                <p className="mt-1 text-xs text-gray-500">At least 8 characters and 1 number</p>
               </div>
 
               <div>

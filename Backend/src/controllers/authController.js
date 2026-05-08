@@ -70,7 +70,7 @@ export async function register(req, res, next) {
 
     const insertResult = await query(
       `INSERT INTO users (name, email, password_hash, role, created_at)
-       VALUES ($1, $2, $3, 'user', NOW())
+       VALUES ($1, $2, $3, 'customer', NOW())
        RETURNING id, name, email, role, created_at`,
       [String(name).trim(), normalizedEmail, password_hash],
     );
@@ -84,12 +84,14 @@ export async function register(req, res, next) {
   }
 }
 
-// ─── login ───────────────────────────────────────────────────────────────────
+// ─── login (unified: checks users then admins) ───────────────────────────────
 
 /**
  * POST /api/auth/login
  * Body: { email, password }
- * Returns: { user, token }
+ * Returns: { user, token, role }
+ * Checks the users table first; falls back to admins table.
+ * Role 'admin' in the response means the caller should redirect to the dashboard.
  */
 export async function login(req, res, next) {
   try {
@@ -101,30 +103,41 @@ export async function login(req, res, next) {
 
     const normalizedEmail = String(email).trim().toLowerCase();
 
-    const result = await query(
+    // ── 1. Check users table ─────────────────────────────────────────────────
+    const userResult = await query(
       `SELECT id, name, email, password_hash, role, created_at
-         FROM users
-        WHERE email = $1
-        LIMIT 1`,
+         FROM users WHERE email = $1 LIMIT 1`,
       [normalizedEmail],
     );
 
-    if (result.rowCount === 0) {
-      // Intentionally vague – do not reveal whether the email exists.
-      return respond.unauthorized(res, 'Invalid credentials');
+    if (userResult.rowCount > 0) {
+      const row = userResult.rows[0];
+      if (!(await verifyPassword(password, row.password_hash))) {
+        return respond.unauthorized(res, 'Invalid credentials');
+      }
+      const user = sanitizeUser(row);
+      const token = generateAccessToken({ id: user.id, email: user.email, role: user.role });
+      return respond.success(res, { user, token, role: user.role }, 'Login successful');
     }
 
-    const row = result.rows[0];
-    const valid = await verifyPassword(password, row.password_hash);
+    // ── 2. Fall back to admins table ─────────────────────────────────────────
+    const adminResult = await query(
+      `SELECT id, name, email, password_hash, created_at
+         FROM admins WHERE email = $1 LIMIT 1`,
+      [normalizedEmail],
+    );
 
-    if (!valid) {
-      return respond.unauthorized(res, 'Invalid credentials');
+    if (adminResult.rowCount > 0) {
+      const row = adminResult.rows[0];
+      if (!(await verifyPassword(password, row.password_hash))) {
+        return respond.unauthorized(res, 'Invalid credentials');
+      }
+      const admin = sanitizeAdmin(row);
+      const token = generateAccessToken({ id: admin.id, email: admin.email, role: 'admin' });
+      return respond.success(res, { user: admin, token, role: 'admin' }, 'Login successful');
     }
 
-    const user = sanitizeUser(row);
-    const token = generateAccessToken({ id: user.id, email: user.email, role: user.role });
-
-    return respond.success(res, { user, token }, 'Login successful');
+    return respond.unauthorized(res, 'Invalid credentials');
   } catch (err) {
     return next(err);
   }

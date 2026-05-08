@@ -1,24 +1,13 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import { AnimatePresence, motion } from "framer-motion";
 import {
-  FaBan,
-  FaChevronLeft,
-  FaChevronRight,
-  FaClipboardList,
-  FaDollarSign,
-  FaSearch,
-  FaSyncAlt,
-  FaTruck,
+  FaBan, FaChevronLeft, FaChevronRight, FaClipboardList,
+  FaDollarSign, FaSearch, FaSyncAlt, FaTruck,
 } from "react-icons/fa";
 import { getAllOrders, updateOrderStatus } from "../api/client";
 import { ShopContext } from "../context/ShopContextProvider";
+import AdminSidebar from "../components/AdminSidebar";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -185,10 +174,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
-  // ── Auth guard ──
-  useEffect(() => {
-    if (!adminToken) navigate("/admin/login");
-  }, [adminToken, navigate]);
+  useEffect(() => { if (!adminToken) navigate("/login"); }, [adminToken, navigate]);
 
   // ── Fetch orders ──
   const fetchOrders = useCallback(
@@ -274,35 +260,24 @@ export default function AdminOrders() {
   if (!adminToken) return null;
 
   return (
-    <motion.div
-      className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50/30"
-      variants={pageVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* ── Top bar ── */}
-      <div className="sticky top-0 z-30 border-b border-gray-100 bg-white/80 shadow-sm backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+    <div className="min-h-screen bg-slate-50">
+      <AdminSidebar />
+
+      <div className="md:ml-60">
+        {/* Page header */}
+        <div className="flex items-center justify-between px-4 md:px-8 py-5 border-b border-gray-200 bg-white">
           <div>
-            <h1 className="text-lg font-extrabold tracking-tight text-gray-900">
-              Order Management
-            </h1>
-            <p className="text-xs text-gray-400">
-              {pagination.total} total order{pagination.total !== 1 ? "s" : ""}
-            </p>
+            <h1 className="text-xl font-extrabold text-gray-900">Order Management</h1>
+            <p className="text-xs text-gray-400 mt-0.5">{pagination.total} total orders</p>
           </div>
-          <motion.button
-            {...btnMotion}
-            onClick={() => fetchOrders(pagination.page)}
-            className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 transition"
-          >
+          <motion.button {...btnMotion} onClick={() => fetchOrders(pagination.page)}
+            className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 transition">
             <FaSyncAlt className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </motion.button>
         </div>
-      </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-8 space-y-6">
+      <div className="px-4 md:px-8 py-6 space-y-6">
         {/* ── Summary cards ── */}
         <motion.div
           className="grid grid-cols-2 gap-4 sm:grid-cols-4"
@@ -637,6 +612,7 @@ export default function AdminOrders() {
           )}
         </motion.div>
       </div>
-    </motion.div>
+      </div>
+    </div>
   );
 }
