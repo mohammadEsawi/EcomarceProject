@@ -146,7 +146,7 @@ export async function getMe(req, res, next) {
     }
 
     const result = await query(
-      `SELECT id, name, email, role, phone, avatar_url, created_at, updated_at
+      `SELECT id, name, email, role, phone, created_at, updated_at
          FROM users
         WHERE id = $1
         LIMIT 1`,

@@ -32,33 +32,53 @@ export async function createOrder(req, res) {
       const enrichedItems = [];
 
       for (const item of items) {
-        const { variant_id, quantity } = item;
+        const { variant_id, product_id, size_name, quantity } = item;
 
-        if (!variant_id || !quantity || quantity < 1) {
-          throw Object.assign(new Error('Each item must have a valid variant_id and quantity'), { statusCode: 400 });
+        if (!quantity || quantity < 1) {
+          throw Object.assign(new Error('Each item must have a valid quantity'), { statusCode: 400 });
+        }
+        if (!variant_id && !product_id) {
+          throw Object.assign(new Error('Each item must have variant_id or product_id'), { statusCode: 400 });
         }
 
-        // Inventory check (lock the row for update)
-        const invRes = await client.query(
-          `SELECT i.quantity, i.id AS inventory_id,
-                  p.name  AS product_name,
-                  p.price, p.discount_price,
-                  c.name  AS color_name,
-                  s.name  AS size_name,
-                  pv.product_id
-           FROM   inventory       i
-           JOIN   product_variants pv ON pv.id = i.variant_id
-           JOIN   products         p  ON p.id  = pv.product_id
-           JOIN   colors           c  ON c.id  = pv.color_id
-           JOIN   sizes            s  ON s.id  = pv.size_id
-           WHERE  i.variant_id = $1
-           FOR UPDATE`,
-          [variant_id],
-        );
+        // Build query: lookup by variant_id OR by product_id + size_name
+        let invRes;
+        if (variant_id) {
+          invRes = await client.query(
+            `SELECT i.quantity, i.id AS inventory_id,
+                    p.name AS product_name, p.price, p.discount_price,
+                    c.name AS color_name, s.name AS size_name, pv.product_id, pv.id AS variant_id
+             FROM inventory i
+             JOIN product_variants pv ON pv.id = i.variant_id
+             JOIN products p ON p.id = pv.product_id
+             JOIN colors c ON c.id = pv.color_id
+             JOIN sizes s ON s.id = pv.size_id
+             WHERE i.variant_id = $1
+             FOR UPDATE`,
+            [variant_id],
+          );
+        } else {
+          // Resolve variant from product_id + size_name (pick first available color)
+          invRes = await client.query(
+            `SELECT i.quantity, i.id AS inventory_id,
+                    p.name AS product_name, p.price, p.discount_price,
+                    c.name AS color_name, s.name AS size_name, pv.product_id, pv.id AS variant_id
+             FROM inventory i
+             JOIN product_variants pv ON pv.id = i.variant_id
+             JOIN products p ON p.id = pv.product_id
+             JOIN colors c ON c.id = pv.color_id
+             JOIN sizes s ON s.id = pv.size_id
+             WHERE pv.product_id = $1 AND s.name = $2 AND i.quantity > 0
+             ORDER BY i.quantity DESC
+             LIMIT 1
+             FOR UPDATE`,
+            [product_id, size_name],
+          );
+        }
 
         if (invRes.rowCount === 0) {
           throw Object.assign(
-            new Error(`Variant ${variant_id} not found`),
+            new Error(variant_id ? `Variant ${variant_id} not found` : `No stock for product ${product_id} size ${size_name}`),
             { statusCode: 404 },
           );
         }
@@ -76,7 +96,7 @@ export async function createOrder(req, res) {
         }
 
         enrichedItems.push({
-          variant_id,
+          variant_id: inv.variant_id,
           quantity,
           inventory_id: inv.inventory_id,
           product_id:   inv.product_id,

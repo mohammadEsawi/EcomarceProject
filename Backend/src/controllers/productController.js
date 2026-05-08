@@ -127,7 +127,7 @@ export async function getProducts(req, res, next) {
            SELECT 1 FROM product_variants pv
             WHERE pv.product_id = p.id
               AND pv.size_id    = ${push(parseInt(size_id, 10))}
-              AND pv.is_active  = TRUE
+              AND TRUE
          )`,
       );
     }
@@ -138,7 +138,7 @@ export async function getProducts(req, res, next) {
            SELECT 1 FROM product_variants pv
             WHERE pv.product_id = p.id
               AND pv.color_id   = ${push(parseInt(color_id, 10))}
-              AND pv.is_active  = TRUE
+              AND TRUE
          )`,
       );
     }
@@ -150,7 +150,7 @@ export async function getProducts(req, res, next) {
              FROM product_variants pv
              JOIN inventory inv ON inv.variant_id = pv.id
             WHERE pv.product_id = p.id
-              AND pv.is_active  = TRUE
+              AND TRUE
               AND inv.quantity  > 0
          )`,
       );
@@ -194,7 +194,7 @@ export async function getProducts(req, res, next) {
         SELECT pv.product_id, SUM(inv.quantity) AS total_stock
           FROM product_variants pv
           JOIN inventory inv ON inv.variant_id = pv.id
-         WHERE pv.is_active = TRUE
+         WHERE TRUE
          GROUP BY pv.product_id
       ) inv_agg ON inv_agg.product_id = p.id
       LEFT JOIN (
@@ -202,7 +202,7 @@ export async function getProducts(req, res, next) {
                ROUND(AVG(rating), 2) AS average_rating,
                COUNT(*)              AS review_count
           FROM reviews
-         WHERE is_approved = TRUE
+         WHERE is_visible = TRUE
          GROUP BY product_id
       ) rev_agg ON rev_agg.product_id = p.id
       ${whereClause}
@@ -270,7 +270,7 @@ export async function getProduct(req, res, next) {
          SELECT pv.product_id, SUM(inv.quantity) AS total_stock
            FROM product_variants pv
            JOIN inventory inv ON inv.variant_id = pv.id
-          WHERE pv.is_active = TRUE
+          WHERE TRUE
           GROUP BY pv.product_id
        ) inv_agg ON inv_agg.product_id = p.id
        LEFT JOIN (
@@ -278,7 +278,7 @@ export async function getProduct(req, res, next) {
                 ROUND(AVG(rating), 2) AS average_rating,
                 COUNT(*)              AS review_count
            FROM reviews
-          WHERE is_approved = TRUE
+          WHERE is_visible = TRUE
           GROUP BY product_id
        ) rev_agg ON rev_agg.product_id = p.id
        WHERE p.id = $1`,
@@ -293,7 +293,7 @@ export async function getProduct(req, res, next) {
 
     // ── images ────────────────────────────────────────────────────────────────
     const imagesResult = await query(
-      `SELECT id, image_url, alt_text, display_order, is_main
+      `SELECT id, image_url, display_order, is_main
          FROM product_images
         WHERE product_id = $1
         ORDER BY display_order ASC, id ASC`,
@@ -317,7 +317,7 @@ export async function getProduct(req, res, next) {
        JOIN sizes  s    ON s.id   = pv.size_id
        LEFT JOIN inventory inv ON inv.variant_id = pv.id
        WHERE pv.product_id = $1
-         AND pv.is_active  = TRUE
+         AND TRUE
        ORDER BY col.name ASC, s.display_order ASC`,
       [productId],
     );
@@ -396,7 +396,7 @@ export async function createProduct(req, res, next) {
       `INSERT INTO products
          (name, slug, description, price, discount_price, category_id,
           is_featured, is_visible, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'active', NOW(), NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'available', NOW(), NOW())
        RETURNING *`,
       [
         String(name).trim(),
@@ -650,8 +650,8 @@ export async function addProductVariant(req, res, next) {
     const result = await withTransaction(async (client) => {
       // Insert the variant
       const { rows: variantRows } = await client.query(
-        `INSERT INTO product_variants (product_id, color_id, size_id, is_active, created_at)
-         VALUES ($1, $2, $3, TRUE, NOW())
+        `INSERT INTO product_variants (product_id, color_id, size_id, created_at)
+         VALUES ($1, $2, $3, NOW())
          RETURNING *`,
         [productId, numColorId, numSizeId],
       );
@@ -760,7 +760,7 @@ export async function getFeaturedProducts(req, res, next) {
                 ROUND(AVG(rating), 2) AS average_rating,
                 COUNT(*)              AS review_count
            FROM reviews
-          WHERE is_approved = TRUE
+          WHERE is_visible = TRUE
           GROUP BY product_id
        ) rev_agg ON rev_agg.product_id = p.id
        WHERE p.is_featured = TRUE
@@ -836,7 +836,7 @@ export async function getProductsByCategory(req, res, next) {
            SELECT pv.product_id, SUM(inv.quantity) AS total_stock
              FROM product_variants pv
              JOIN inventory inv ON inv.variant_id = pv.id
-            WHERE pv.is_active = TRUE
+            WHERE TRUE
             GROUP BY pv.product_id
          ) inv_agg ON inv_agg.product_id = p.id
          LEFT JOIN (
@@ -844,7 +844,7 @@ export async function getProductsByCategory(req, res, next) {
                   ROUND(AVG(rating), 2) AS average_rating,
                   COUNT(*)              AS review_count
              FROM reviews
-            WHERE is_approved = TRUE
+            WHERE is_visible = TRUE
             GROUP BY product_id
          ) rev_agg ON rev_agg.product_id = p.id
          WHERE p.category_id = $1
