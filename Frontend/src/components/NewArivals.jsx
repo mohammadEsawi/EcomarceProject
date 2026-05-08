@@ -55,9 +55,9 @@ export default function NewArrivals() {
         }}
         modules={[Autoplay, Pagination]}
         className="!pb-14"
-        loop={true}
+        loop={newArrivals.length >= 8}
         speed={800}
-        loopAdditionalSlides={4}
+        loopAdditionalSlides={newArrivals.length >= 8 ? 4 : 0}
       >
         {newArrivals.map((product, index) => (
           <SwiperSlide

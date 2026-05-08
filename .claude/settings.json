@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node --input-type=module --experimental-vm-modules)",
+      "Bash(node -e ' *)"
+    ]
+  }
+}

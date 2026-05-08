@@ -87,6 +87,7 @@ export const removeWishlistItem = (productId, token) => apiFetch(`/wishlist/${pr
 export const getProfile = (token) => apiFetch('/profile', { headers: authHeader(token) });
 export const saveProfile = (payload, token) => apiFetch('/profile', { method: 'PUT', headers: authHeader(token), body: JSON.stringify(payload) });
 export const changePassword = (payload, token) => apiFetch('/profile/change-password', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
+export const addAddress = (address, token) => apiFetch('/profile/addresses', { method: 'POST', headers: authHeader(token), body: JSON.stringify({ address }) });
 
 // REVIEWS
 export const getProductReviews = (productId) => apiFetch(`/reviews/product/${productId}`);

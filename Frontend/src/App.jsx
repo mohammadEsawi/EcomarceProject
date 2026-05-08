@@ -16,6 +16,10 @@ import ForgotPassword from "./pages/ForgotPassword";
 import Orders from "./pages/Orders";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import Wishlist from "./pages/Wishlist";
+import Profile from "./pages/Profile";
+import OrderConfirmation from "./pages/OrderConfirmation";
+import AdminOrders from "./pages/AdminOrders";
 
 export default function App() {
   return (
@@ -34,9 +38,16 @@ export default function App() {
         <Route exact path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/orders" element={<Orders />} />
+        <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route
+          path="/order-confirmation/:orderId"
+          element={<OrderConfirmation />}
+        />
         <Route exact path="/place-order" element={<PlaceOrder />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
+        <Route path="/admin/orders" element={<AdminOrders />} />
       </Routes>
     </main>
   );

@@ -3,10 +3,17 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Disclosure,
   DisclosureButton,
-  DisclosurePanel
+  DisclosurePanel,
 } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
-import { TbBasket, TbUserCircle, TbLogout, TbListDetails } from "react-icons/tb";
+import {
+  TbBasket,
+  TbUserCircle,
+  TbLogout,
+  TbListDetails,
+  TbHeart,
+  TbUser,
+} from "react-icons/tb";
 import { RiUserLine } from "react-icons/ri";
 import { ShopContext } from "../context/ShopContextProvider";
 import Navbar from "./Navbar";
@@ -22,8 +29,10 @@ export default function Header() {
   // Close dropdown when clicking outside or navigating
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!dropdownRef.current?.contains(event.target) &&
-          !triggerRef.current?.contains(event.target)) {
+      if (
+        !dropdownRef.current?.contains(event.target) &&
+        !triggerRef.current?.contains(event.target)
+      ) {
         setIsDropdownOpen(false);
       }
     };
@@ -38,7 +47,7 @@ export default function Header() {
 
   const handleUserAction = () => {
     if (token) {
-      setIsDropdownOpen(prev => !prev);
+      setIsDropdownOpen((prev) => !prev);
     }
   };
 
@@ -83,6 +92,13 @@ export default function Header() {
                   </span>
                 </Link>
 
+                <Link
+                  to="/wishlist"
+                  className="hidden sm:flex relative hover:text-secondary transition-colors"
+                >
+                  <TbHeart className="text-2xl sm:text-[27px]" />
+                </Link>
+
                 {/* Authentication Section */}
                 <div className="relative">
                   {token ? (
@@ -108,6 +124,17 @@ export default function Header() {
                         >
                           <div className="p-2 space-y-1">
                             <button
+                              onClick={() => {
+                                navigate("/profile");
+                                setIsDropdownOpen(false);
+                              }}
+                              className="w-full flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                              role="menuitem"
+                            >
+                              <TbUser className="mr-2" />
+                              Profile
+                            </button>
+                            <button
                               onClick={handleOrdersNavigation}
                               className="w-full flex items-center px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                               role="menuitem"
@@ -128,8 +155,8 @@ export default function Header() {
                       )}
                     </>
                   ) : (
-                    <Link 
-                      to="/login" 
+                    <Link
+                      to="/login"
                       className="flex items-center gap-x-1 hover:text-secondary transition-colors"
                     >
                       <span className="hidden sm:block">Login</span>

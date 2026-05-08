@@ -406,7 +406,7 @@ export default function Collections() {
 
           {/* Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 px-4 mt-2">
-            <AnimatePresence mode="wait">
+            <AnimatePresence>
               {loading ? (
                 Array.from({ length: LIMIT }).map((_, i) => (
                   <SkeletonCard key={`sk-${i}`} />
