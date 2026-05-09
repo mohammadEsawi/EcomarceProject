@@ -1,101 +1,103 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
+/**
+ * Legacy API client — now a thin wrapper around the Axios instance.
+ * All new code should import from src/lib/axios.js or use React Query hooks.
+ * This file remains for backwards compatibility with existing page components.
+ */
+import api from '../lib/axios.js';
 
-// Core fetch helper
-async function apiFetch(path, options = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-    ...options,
-  });
-  const isJson = response.headers.get('content-type')?.includes('application/json');
-  const data = isJson ? await response.json() : null;
-  if (!response.ok) throw new Error(data?.message || `Request failed: ${response.status}`);
-  return data?.data ?? data;
+export function getApiBaseUrl() {
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000/api';
 }
-
-function authHeader(token) {
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-export function getApiBaseUrl() { return API_BASE_URL; }
 
 // AUTH
-export const userRegister = (payload) => apiFetch('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
-export const userLogin = (email, password) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-export const getCurrentUser = (token) => apiFetch('/auth/me', { headers: authHeader(token) });
-export const adminLogin = (email, password) => apiFetch('/auth/admin/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+export const userRegister = (payload) => api.post('/auth/register', payload);
+export const userLogin    = (email, password) => api.post('/auth/login', { email, password });
+export const getCurrentUser = () => api.get('/auth/me');
+export const adminLogin   = (email, password) => api.post('/auth/admin/login', { email, password });
 
 // PRODUCTS
-export const getProducts = (params = {}) => {
-  const qs = new URLSearchParams(params).toString();
-  return apiFetch(`/products${qs ? `?${qs}` : ''}`);
+export const getProducts = (params = {}) => api.get('/products', { params });
+export const getProduct  = (id) => api.get(`/products/${id}`);
+export const getFeaturedProducts = (limit = 8) => api.get('/products/featured', { params: { limit } });
+export const createProduct = (payload) => api.post('/products', payload);
+export const updateProduct = (id, payload) => api.put(`/products/${id}`, payload);
+export const deleteProduct = (id) => api.delete(`/products/${id}`);
+export const addProductVariant = (productId, payload) => api.post(`/products/${productId}/variants`, payload);
+export const updateInventory   = (variantId, quantity) => api.put(`/products/variants/${variantId}/inventory`, { quantity });
+export const uploadProductImages = (productId, files) => {
+  const form = new FormData();
+  files.forEach((f) => form.append('images', f));
+  return api.post(`/products/${productId}/images`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
 };
-export const getProduct = (id) => apiFetch(`/products/${id}`);
-export const getFeaturedProducts = (limit = 8) => apiFetch(`/products/featured?limit=${limit}`);
-export const createProduct = (payload, token) => apiFetch('/products', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
-export const updateProduct = (id, payload, token) => apiFetch(`/products/${id}`, { method: 'PUT', headers: authHeader(token), body: JSON.stringify(payload) });
-export const deleteProduct = (id, token) => apiFetch(`/products/${id}`, { method: 'DELETE', headers: authHeader(token) });
 
-// PRODUCT VARIANTS & INVENTORY
-export const addProductVariant = (productId, payload, token) => apiFetch(`/products/${productId}/variants`, { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
-export const updateInventory = (variantId, quantity, token) => apiFetch(`/products/variants/${variantId}/inventory`, { method: 'PUT', headers: authHeader(token), body: JSON.stringify({ quantity }) });
+// BRANDS
+export const getBrands    = () => api.get('/brands');
+export const createBrand  = (payload) => api.post('/brands', payload);
+export const updateBrand  = (id, payload) => api.put(`/brands/${id}`, payload);
+export const deleteBrand  = (id) => api.delete(`/brands/${id}`);
 
-// IMAGE UPLOAD - use FormData, no Content-Type header
-export const uploadProductImages = async (productId, files, token) => {
-  const formData = new FormData();
-  files.forEach(f => formData.append('images', f));
-  const response = await fetch(`${API_BASE_URL}/products/${productId}/images`, {
-    method: 'POST',
-    headers: authHeader(token),
-    body: formData,
-  });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || 'Upload failed');
-  return data;
-};
+// BANNERS
+export const getBanners   = (position) => api.get('/banners', { params: position ? { position } : {} });
+export const createBanner = (payload) => api.post('/banners', payload);
+export const updateBanner = (id, payload) => api.put(`/banners/${id}`, payload);
+export const deleteBanner = (id) => api.delete(`/banners/${id}`);
 
 // ADMIN
-export const getDashboardStats = (token) => apiFetch('/admin/dashboard', { headers: authHeader(token) });
-export const createAdminAccount = (payload, token) => apiFetch('/admin/accounts', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
-export const getAdminProfile = (token) => apiFetch('/admin/profile', { headers: authHeader(token) });
-export const getAdminUsers = (token, params = {}) => { const qs = new URLSearchParams(params).toString(); return apiFetch(`/admin/users${qs ? `?${qs}` : ''}`, { headers: authHeader(token) }); };
+export const getDashboardStats   = () => api.get('/admin/dashboard');
+export const createAdminAccount  = (payload) => api.post('/admin/accounts', payload);
+export const getAdminProfile     = () => api.get('/admin/profile');
+export const getAdminUsers       = (params = {}) => api.get('/admin/users', { params });
+
+// ANALYTICS
+export const getAnalyticsOverview  = () => api.get('/analytics/overview');
+export const getSalesChart         = (period) => api.get('/analytics/sales', { params: { period } });
+export const getTopProducts        = (limit) => api.get('/analytics/top-products', { params: { limit } });
+export const getCategoryBreakdown  = () => api.get('/analytics/category-breakdown');
+export const getInventoryHealth    = () => api.get('/analytics/inventory-health');
 
 // ORDERS
-export const createOrder = (payload, token) => apiFetch('/orders', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
-export const getMyOrders = (token, params = {}) => {
-  const qs = new URLSearchParams(params).toString();
-  return apiFetch(`/orders/my${qs ? `?${qs}` : ''}`, { headers: authHeader(token) });
-};
-export const getAllOrders = (token, params = {}) => {
-  const qs = new URLSearchParams(params).toString();
-  return apiFetch(`/orders${qs ? `?${qs}` : ''}`, { headers: authHeader(token) });
-};
-export const getOrderById = (id, token) => apiFetch(`/orders/${id}`, { headers: authHeader(token) });
-export const updateOrderStatus = (id, status, token) => apiFetch(`/orders/${id}/status`, { method: 'PATCH', headers: authHeader(token), body: JSON.stringify({ status }) });
-export const cancelOrder = (id, token) => apiFetch(`/orders/${id}/cancel`, { method: 'PATCH', headers: authHeader(token) });
+export const createOrder      = (payload) => api.post('/orders', payload);
+export const getMyOrders      = (params = {}) => api.get('/orders/my', { params });
+export const getAllOrders      = (params = {}) => api.get('/orders', { params });
+export const getOrderById     = (id) => api.get(`/orders/${id}`);
+export const updateOrderStatus = (id, status) => api.patch(`/orders/${id}/status`, { status });
+export const cancelOrder      = (id) => api.patch(`/orders/${id}/cancel`);
 
-// INVENTORY (admin)
-export const getStockAlerts = (token) => apiFetch('/inventory/alerts', { headers: authHeader(token) });
-export const resolveStockAlert = (alertId, token) => apiFetch(`/inventory/alerts/${alertId}/resolve`, { method: 'PATCH', headers: authHeader(token) });
-export const getInventoryReport = (token) => apiFetch('/inventory/report', { headers: authHeader(token) });
-export const updateStock = (variantId, quantity, token) => apiFetch(`/inventory/stock/${variantId}`, { method: 'PATCH', headers: authHeader(token), body: JSON.stringify({ quantity }) });
+// INVENTORY
+export const getStockAlerts    = () => api.get('/inventory/alerts');
+export const resolveStockAlert = (alertId) => api.patch(`/inventory/alerts/${alertId}/resolve`);
+export const getInventoryReport = () => api.get('/inventory/report');
+export const updateStock       = (variantId, quantity) => api.patch(`/inventory/stock/${variantId}`, { quantity });
 
 // WISHLIST
-export const getWishlist = (token) => apiFetch('/wishlist', { headers: authHeader(token) });
-export const toggleWishlist = (productId, token) => apiFetch('/wishlist/toggle', { method: 'POST', headers: authHeader(token), body: JSON.stringify({ product_id: productId }) });
-export const removeWishlistItem = (productId, token) => apiFetch(`/wishlist/${productId}`, { method: 'DELETE', headers: authHeader(token) });
+export const getWishlist       = () => api.get('/wishlist');
+export const toggleWishlist    = (productId) => api.post('/wishlist/toggle', { product_id: productId });
+export const removeWishlistItem = (productId) => api.delete(`/wishlist/${productId}`);
 
 // PROFILE
-export const getProfile = (token) => apiFetch('/profile', { headers: authHeader(token) });
-export const saveProfile = (payload, token) => apiFetch('/profile', { method: 'PUT', headers: authHeader(token), body: JSON.stringify(payload) });
-export const changePassword = (payload, token) => apiFetch('/profile/change-password', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
-export const addAddress = (address, token) => apiFetch('/profile/addresses', { method: 'POST', headers: authHeader(token), body: JSON.stringify({ address }) });
+export const getProfile     = () => api.get('/profile');
+export const saveProfile    = (payload) => api.put('/profile', payload);
+export const changePassword = (payload) => api.post('/profile/change-password', payload);
+
+// SHIPPING ADDRESSES
+export const getMyAddresses   = () => api.get('/shipping-addresses');
+export const createAddress    = (payload) => api.post('/shipping-addresses', payload);
+export const updateAddress    = (id, payload) => api.put(`/shipping-addresses/${id}`, payload);
+export const deleteAddress    = (id) => api.delete(`/shipping-addresses/${id}`);
+export const setDefaultAddress = (id) => api.patch(`/shipping-addresses/${id}/default`);
 
 // REVIEWS
-export const getProductReviews = (productId) => apiFetch(`/reviews/product/${productId}`);
-export const createProductReview = (productId, payload, token) => apiFetch(`/reviews/product/${productId}`, { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
-export const markReviewHelpful = (reviewId, token) => apiFetch(`/reviews/${reviewId}/helpful`, { method: 'POST', headers: authHeader(token) });
+export const getProductReviews  = (productId) => api.get(`/reviews/product/${productId}`);
+export const createProductReview = (productId, payload) => api.post(`/reviews/product/${productId}`, payload);
+export const markReviewHelpful  = (reviewId) => api.post(`/reviews/${reviewId}/helpful`);
 
 // COUPONS
-export const getActiveCoupons = () => apiFetch('/coupons/active');
-export const validateCoupon = (code, order_amount) => apiFetch('/coupons/validate', { method: 'POST', body: JSON.stringify({ code, order_amount }) });
-export const createCoupon = (payload, token) => apiFetch('/coupons', { method: 'POST', headers: authHeader(token), body: JSON.stringify(payload) });
+export const getActiveCoupons = () => api.get('/coupons/active');
+export const validateCoupon   = (code, order_amount) => api.post('/coupons/validate', { code, order_amount });
+export const createCoupon     = (payload) => api.post('/coupons', payload);
+
+// NOTIFICATIONS
+export const getNotifications  = (params = {}) => api.get('/notifications', { params });
+export const getUnreadCount    = () => api.get('/notifications/unread-count');
+export const markNotificationRead = (id) => api.patch(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => api.patch('/notifications/read-all');

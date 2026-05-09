@@ -40,7 +40,7 @@ export default function Orders() {
 
       try {
         const data = await getMyOrders(token);
-        setOrders(Array.isArray(data) ? data : []);
+        setOrders(data?.orders ?? []);
       } catch (error) {
         toast.error(error.message || "Failed to load orders");
       } finally {
@@ -93,12 +93,12 @@ export default function Orders() {
               const statusClass =
                 statusStyles[order.status] || "bg-gray-100 text-gray-700";
               return (
-                <article key={order._id} className="p-6 border-b last:border-0">
+                <article key={order.id} className="p-6 border-b last:border-0">
                   <div className="flex flex-col lg:flex-row lg:justify-between gap-6">
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <h2 className="font-semibold text-gray-900">
-                          Order #{order.orderNumber}
+                          Order #{order.id}
                         </h2>
                         <span
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm ${statusClass}`}
@@ -113,44 +113,26 @@ export default function Orders() {
 
                       <p className="text-sm text-gray-500">
                         Placed on{" "}
-                        {new Date(order.createdAt).toLocaleDateString()}
+                        {new Date(order.created_at).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
                       </p>
 
-                      <p className="text-sm text-gray-500">
-                        Payment: {order.paymentMethod}
-                      </p>
+                      {order.payment_method && (
+                        <p className="text-sm text-gray-500 capitalize">
+                          Payment: {order.payment_method.replace(/_/g, " ")}
+                        </p>
+                      )}
 
-                      <div className="space-y-2">
-                        {(order.items || []).map((item, index) => (
-                          <div
-                            key={`${order._id}-${index}`}
-                            className="flex items-center gap-3 text-sm text-gray-700"
-                          >
-                            {item.image ? (
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-12 h-12 object-cover rounded"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 bg-gray-100 rounded" />
-                            )}
-                            <div>
-                              <p className="font-medium">{item.name}</p>
-                              <p className="text-gray-500">
-                                Size: {item.size} | Qty: {item.quantity} | $
-                                {Number(item.price || 0).toFixed(2)}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      {order.item_count != null && (
+                        <p className="text-sm text-gray-400">
+                          {order.item_count} item{order.item_count !== 1 ? "s" : ""}
+                        </p>
+                      )}
                     </div>
 
-                    <div className="lg:text-right">
+                    <div className="lg:text-right shrink-0">
                       <p className="text-sm text-gray-500">Total</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        ${Number(order.totals?.total || 0).toFixed(2)}
+                        ${Number(order.total_amount || 0).toFixed(2)}
                       </p>
                     </div>
                   </div>

@@ -18,6 +18,11 @@ import reviewRoutes from './routes/reviews.js';
 import wishlistRoutes from './routes/wishlist.js';
 import couponRoutes from './routes/coupons.js';
 import profileRoutes from './routes/profile.js';
+import brandRoutes from './routes/brands.js';
+import bannerRoutes from './routes/banners.js';
+import analyticsRoutes from './routes/analytics.js';
+import notificationRoutes from './routes/notifications.js';
+import shippingRoutes from './routes/shipping.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +56,11 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/brands', brandRoutes);
+app.use('/api/banners', bannerRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/shipping-addresses', shippingRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

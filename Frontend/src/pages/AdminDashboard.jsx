@@ -1,573 +1,535 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { toast } from "react-toastify";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  FaBan, FaBoxes, FaCheck, FaClock, FaDollarSign, FaEdit,
-  FaExclamationTriangle, FaEye, FaEyeSlash, FaPlus, FaShoppingCart,
-  FaTrash, FaUsers,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import {
+  FaTachometerAlt, FaBoxes, FaUsers, FaExclamationTriangle,
+  FaClipboardList, FaPlus, FaTrash, FaEdit, FaBell, FaTag, FaImage,
+  FaDollarSign, FaArrowUp, FaArrowDown, FaShoppingCart, FaChartLine,
 } from "react-icons/fa";
-import {
-  createAdminAccount, createProduct, deleteProduct, getDashboardStats,
-  getAdminUsers, getProducts, getStockAlerts, resolveStockAlert, updateProduct,
-} from "../api/client";
-import { ShopContext } from "../context/ShopContextProvider";
+import { toast } from "react-toastify";
 import AdminSidebar from "../components/AdminSidebar";
+import { Modal } from "../components/ui/Modal";
+import { Spinner, FullPageSpinner } from "../components/ui/Spinner";
+import { Badge } from "../components/ui/Badge";
+import { SkeletonRow } from "../components/ui/SkeletonCard";
+import { useAuthStore } from "../store/authStore";
+import {
+  useAnalyticsOverview, useSalesChart, useTopProducts,
+  useAdminUsers, useAdminBrands, useAdminBanners,
+  useCreateBrand, useUpdateBrand, useDeleteBrand,
+  useCreateBanner, useDeleteBanner, useStockAlerts, useResolveStockAlert,
+  useSendNotification,
+} from "../hooks/useAdmin";
+import { useAllOrders, useUpdateOrderStatus } from "../hooks/useOrders";
+import { useProducts, useDeleteProduct, useCreateProduct, useUpdateProduct } from "../hooks/useProducts";
+import api from "../lib/axios";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const TABS = ["overview", "products", "users", "stock"];
-
-const CATEGORY_MAP    = { Men: 1, Women: 2, Kids: 3, Accessories: 4 };
-const CATEGORY_OPTIONS = Object.keys(CATEGORY_MAP);
-
-const EMPTY_FORM = {
-  name: "", description: "", price: "", discount_price: "",
-  category_name: "Men", is_featured: false, is_visible: true, main_image_url: "",
-};
-
-// ─── Motion helpers ───────────────────────────────────────────────────────────
-const fade = { hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0, transition: { duration: 0.35 } } };
-const stagger = { hidden: {}, visible: { transition: { staggerChildren: 0.07 } } };
-const btn = { whileHover: { scale: 1.02 }, whileTap: { scale: 0.97 } };
-
-// ─── Count-up hook ────────────────────────────────────────────────────────────
-function useCountUp(target, ms = 1100) {
-  const [v, setV] = useState(0);
-  const raf = useRef(null);
-  useEffect(() => {
-    let t0 = null;
-    const n = parseFloat(target) || 0;
-    const step = (ts) => {
-      if (!t0) t0 = ts;
-      const p = Math.min((ts - t0) / ms, 1);
-      setV(Math.floor(p * n));
-      if (p < 1) raf.current = requestAnimationFrame(step);
-      else setV(n);
-    };
-    raf.current = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf.current);
-  }, [target, ms]);
-  return v;
-}
-
-// ─── Shared UI ────────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, color, prefix = "", onClick }) {
-  const n = useCountUp(parseFloat(String(value).replace(/[^0-9.]/g, "")) || 0);
-  const display = prefix === "$" ? `$${n.toLocaleString()}` : n.toLocaleString();
-  const grad = {
-    blue:   "from-blue-500 to-blue-600",
-    purple: "from-purple-500 to-purple-600",
-    green:  "from-emerald-500 to-emerald-600",
-    amber:  "from-amber-400 to-amber-500",
-    orange: "from-orange-500 to-orange-600",
-    red:    "from-rose-500 to-rose-600",
-    indigo: "from-indigo-500 to-indigo-600",
+// ── Stat card ─────────────────────────────────────────────────────────────────
+function StatCard({ title, value, sub, icon: Icon, color = "indigo", trend }) {
+  const colors = {
+    indigo: "bg-indigo-500",
+    emerald:"bg-emerald-500",
+    amber:  "bg-amber-500",
+    rose:   "bg-rose-500",
   };
   return (
     <motion.div
-      variants={fade}
-      onClick={onClick}
-      whileHover={{ scale: 1.03, y: -2 }}
-      className={`relative overflow-hidden rounded-2xl bg-gradient-to-br ${grad[color]} p-5 text-white shadow-lg ${onClick ? "cursor-pointer" : ""}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5"
     >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-white/70">{label}</p>
-          <p className="mt-1 text-3xl font-extrabold tracking-tight">{display}</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{title}</p>
+          <p className="text-2xl font-extrabold text-gray-900">{value}</p>
+          {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+          {trend != null && (
+            <p className={`text-xs font-semibold mt-1 flex items-center gap-1 ${trend >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+              {trend >= 0 ? <FaArrowUp className="h-2.5 w-2.5" /> : <FaArrowDown className="h-2.5 w-2.5" />}
+              {Math.abs(trend)}% vs last month
+            </p>
+          )}
         </div>
-        <div className="rounded-xl bg-white/20 p-2.5"><Icon className="h-5 w-5" /></div>
+        <div className={`w-10 h-10 ${colors[color]} rounded-xl flex items-center justify-center shrink-0`}>
+          <Icon className="h-5 w-5 text-white" />
+        </div>
       </div>
-      {onClick && <p className="mt-2.5 text-[11px] text-white/60">View details →</p>}
-      <div className="pointer-events-none absolute -bottom-5 -right-5 h-20 w-20 rounded-full bg-white/10" />
     </motion.div>
   );
 }
 
-function Badge({ status }) {
-  const map = {
-    available: "bg-emerald-100 text-emerald-700",
-    low_stock: "bg-amber-100 text-amber-700",
-    out_of_stock: "bg-rose-100 text-rose-700",
-    pending: "bg-amber-100 text-amber-700",
-    processing: "bg-blue-100 text-blue-700",
-    shipped: "bg-indigo-100 text-indigo-700",
-    delivered: "bg-emerald-100 text-emerald-700",
-    cancelled: "bg-rose-100 text-rose-700",
-    customer: "bg-gray-100 text-gray-600",
-    admin: "bg-purple-100 text-purple-700",
-  };
-  return (
-    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize ${map[status] ?? "bg-gray-100 text-gray-500"}`}>
-      {status?.replace(/_/g, " ")}
-    </span>
-  );
-}
-
-function Spinner({ label = "Loading…" }) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
-      <div className="h-9 w-9 animate-spin rounded-full border-4 border-gray-200 border-t-indigo-500" />
-      <span className="text-sm">{label}</span>
-    </div>
-  );
-}
-
-const inputCls = "w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition";
-
-// ─── Tab: Overview ────────────────────────────────────────────────────────────
-function OverviewTab({ stats, loading, onStockTab }) {
-  if (loading) return <Spinner label="Loading dashboard…" />;
-  if (!stats)  return <p className="py-20 text-center text-gray-400">Could not load stats.</p>;
-
-  const cards = [
-    { icon: FaBoxes,              label: "Products",      value: stats.total_products ?? 0,     color: "blue"   },
-    { icon: FaShoppingCart,       label: "Total Orders",  value: stats.total_orders   ?? 0,     color: "purple" },
-    { icon: FaDollarSign,         label: "Revenue",       value: stats.total_revenue  ?? 0,     color: "green",  prefix: "$" },
-    { icon: FaClock,              label: "Pending",       value: stats.pending_orders ?? 0,     color: "amber"  },
-    { icon: FaExclamationTriangle,label: "Low Stock",     value: stats.low_stock_items    ?? 0, color: "orange", onClick: onStockTab },
-    { icon: FaBan,                label: "Out of Stock",  value: stats.out_of_stock_items ?? 0, color: "red",    onClick: onStockTab },
-  ];
-
-  const top     = stats.top_selling_products ?? [];
-  const recent  = stats.recent_orders        ?? [];
-
-  return (
-    <div className="space-y-8">
-      <motion.div className="grid grid-cols-2 gap-4 sm:grid-cols-3" variants={stagger} initial="hidden" animate="visible">
-        {cards.map((c) => <StatCard key={c.label} {...c} />)}
-      </motion.div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Top selling */}
-        <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="mb-4 text-xs font-bold uppercase tracking-widest text-gray-400">Top Selling Products</h3>
-          {top.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray-400">No sales yet</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
-                  <th className="pb-3">#</th><th className="pb-3">Product</th><th className="pb-3 text-right">Units</th><th className="pb-3 text-right">Revenue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {top.map((p, i) => (
-                  <tr key={p.id ?? i} className="border-b last:border-0">
-                    <td className="py-2.5 pr-3 font-bold text-gray-300">{i + 1}</td>
-                    <td className="py-2.5 pr-3">
-                      <div className="flex items-center gap-2">
-                        {p.main_image_url && <img src={p.main_image_url} className="h-8 w-8 rounded-lg object-cover" alt="" />}
-                        <span className="font-medium text-gray-800 truncate max-w-[110px]">{p.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-2.5 text-right font-semibold text-indigo-600">{p.units_sold ?? 0}</td>
-                    <td className="py-2.5 text-right text-gray-600">${Number(p.revenue ?? 0).toFixed(0)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </motion.div>
-
-        {/* Recent orders */}
-        <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">Recent Orders</h3>
-            <Link to="/admin/orders" className="text-xs font-semibold text-indigo-600 hover:underline">View all →</Link>
-          </div>
-          {recent.length === 0 ? (
-            <p className="py-10 text-center text-sm text-gray-400">No orders yet</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
-                  <th className="pb-3">ID</th><th className="pb-3">Customer</th><th className="pb-3">Status</th><th className="pb-3 text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((o, i) => (
-                  <tr key={o.id ?? i} className="border-b last:border-0">
-                    <td className="py-2.5 pr-3 font-mono text-xs text-gray-400">#{String(o.id).slice(-6)}</td>
-                    <td className="py-2.5 pr-3 max-w-[120px] truncate text-gray-700">{o.customer_email ?? o.user_email ?? "—"}</td>
-                    <td className="py-2.5 pr-3"><Badge status={o.status} /></td>
-                    <td className="py-2.5 text-right font-semibold">${Number(o.total_amount ?? 0).toFixed(2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Tab: Products ────────────────────────────────────────────────────────────
+// ── Products tab ──────────────────────────────────────────────────────────────
 function ProductsTab({ adminToken }) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [saving, setSaving]     = useState(false);
-  const [form, setForm]         = useState(EMPTY_FORM);
-  const [editId, setEditId]     = useState(null);
-  const [showAdminForm, setShowAdminForm] = useState(false);
-  const [adminForm, setAdminForm] = useState({ name: "", email: "", password: "" });
-  const [creatingAdmin, setCreatingAdmin] = useState(false);
+  const { data, isLoading } = useProducts({ limit: 50 });
+  const { mutate: deleteProduct, isPending: deleting } = useDeleteProduct();
+  const [showForm, setShowForm] = useState(false);
+  const [editProduct, setEditProduct] = useState(null);
+  const { mutate: createProduct, isPending: creating } = useCreateProduct();
+  const { mutate: updateProduct, isPending: updating } = useUpdateProduct();
+  const [form, setForm] = useState({ name: "", price: "", category_id: "", description: "", is_featured: false });
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      const d = await getProducts({ limit: 100 });
-      setProducts(Array.isArray(d) ? d : d?.products ?? []);
-    } catch (e) { toast.error(e.message); }
-    finally { setLoading(false); }
-  }, []);
+  const products = Array.isArray(data) ? data : (data?.products ?? []);
 
-  useEffect(() => { load(); }, [load]);
-
-  const reset = () => { setForm(EMPTY_FORM); setEditId(null); };
-
-  const startEdit = (p) => {
-    setEditId(p.id ?? p._id);
-    setForm({
-      name: p.name ?? "", description: p.description ?? "",
-      price: String(p.price ?? ""), discount_price: String(p.discount_price ?? ""),
-      category_name: p.category_name ?? "Men",
-      is_featured: Boolean(p.is_featured), is_visible: p.is_visible !== false,
-      main_image_url: p.main_image_url ?? "",
-    });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.price) { toast.error("Name and price required"); return; }
-    try {
-      setSaving(true);
-      const payload = {
-        name: form.name.trim(), description: form.description.trim(),
-        price: Number(form.price),
-        discount_price: form.discount_price ? Number(form.discount_price) : null,
-        is_featured: form.is_featured, is_visible: form.is_visible,
-        main_image_url: form.main_image_url.trim(),
-      };
-      if (editId) { await updateProduct(editId, payload, adminToken); toast.success("Product updated"); }
-      else { await createProduct({ ...payload, category_id: CATEGORY_MAP[form.category_name] ?? 1 }, adminToken); toast.success("Product created"); }
-      await load(); reset();
-    } catch (e) { toast.error(e.message); }
-    finally { setSaving(false); }
+    if (editProduct) {
+      updateProduct({ id: editProduct.id, ...form }, {
+        onSuccess: () => { toast.success("Product updated"); setShowForm(false); setEditProduct(null); },
+        onError: (e) => toast.error(e.message),
+      });
+    } else {
+      createProduct(form, {
+        onSuccess: () => { toast.success("Product created"); setShowForm(false); },
+        onError: (e) => toast.error(e.message),
+      });
+    }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this product?")) return;
-    try { await deleteProduct(id, adminToken); setProducts((p) => p.filter((x) => (x.id ?? x._id) !== id)); if (editId === id) reset(); toast.success("Deleted"); }
-    catch (e) { toast.error(e.message); }
-  };
-
-  const handleCreateAdmin = async (e) => {
-    e.preventDefault();
-    try {
-      setCreatingAdmin(true);
-      await createAdminAccount({ name: adminForm.name.trim(), email: adminForm.email.trim(), password: adminForm.password }, adminToken);
-      setAdminForm({ name: "", email: "", password: "" });
-      toast.success("Admin account created");
-    } catch (e) { toast.error(e.message); }
-    finally { setCreatingAdmin(false); }
-  };
+  if (isLoading) return <div className="space-y-3">{Array.from({length:5},(_,i)=><SkeletonRow key={i}/>)}</div>;
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
-      {/* Form panel */}
-      <div className="space-y-5 lg:col-span-2">
-        <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h2 className="mb-5 text-lg font-bold text-gray-800">{editId ? "Edit Product" : "Add Product"}</h2>
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input className={inputCls} placeholder="Product name *" value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} required />
-            <textarea className={`${inputCls} resize-none`} rows={3} placeholder="Description" value={form.description} onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))} />
-            <div className="grid grid-cols-2 gap-3">
-              <input className={inputCls} type="number" min="0" step="0.01" placeholder="Price *" value={form.price} onChange={(e) => setForm(f => ({ ...f, price: e.target.value }))} required />
-              <input className={inputCls} type="number" min="0" step="0.01" placeholder="Discount price" value={form.discount_price} onChange={(e) => setForm(f => ({ ...f, discount_price: e.target.value }))} />
-            </div>
-            <select className={inputCls} value={form.category_name} onChange={(e) => setForm(f => ({ ...f, category_name: e.target.value }))}>
-              {CATEGORY_OPTIONS.map((c) => <option key={c}>{c}</option>)}
-            </select>
-            <input className={inputCls} placeholder="Main image URL" value={form.main_image_url} onChange={(e) => setForm(f => ({ ...f, main_image_url: e.target.value }))} />
-            <div className="flex gap-6 pt-1">
-              {[["is_featured","Featured"],["is_visible","Visible"]].map(([key,lbl]) => (
-                <label key={key} className="flex items-center gap-2 text-sm cursor-pointer text-gray-700">
-                  <input type="checkbox" checked={form[key]} onChange={(e) => setForm(f => ({ ...f, [key]: e.target.checked }))} className="h-4 w-4 rounded accent-indigo-600" />
-                  {lbl}
-                </label>
-              ))}
-            </div>
-            <div className="flex gap-2 pt-1">
-              <motion.button {...btn} type="submit" disabled={saving}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-60 transition">
-                {saving ? <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : editId ? <FaEdit className="h-3.5 w-3.5" /> : <FaPlus className="h-3.5 w-3.5" />}
-                {saving ? "Saving…" : editId ? "Update" : "Add Product"}
-              </motion.button>
-              {editId && <motion.button {...btn} type="button" onClick={reset} className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</motion.button>}
-            </div>
-          </form>
-        </motion.div>
-
-        {/* Create admin (collapsible) */}
-        <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
-          <button onClick={() => setShowAdminForm(v => !v)} className="flex w-full items-center justify-between px-6 py-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">
-            <span>Create Admin Account</span>
-            {showAdminForm ? <FaEyeSlash className="h-4 w-4 text-gray-400" /> : <FaEye className="h-4 w-4 text-gray-400" />}
-          </button>
-          <AnimatePresence initial={false}>
-            {showAdminForm && (
-              <motion.div key="af" initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.28 }} className="overflow-hidden">
-                <div className="border-t border-gray-100 px-6 pb-6 pt-4">
-                  <form onSubmit={handleCreateAdmin} className="space-y-3">
-                    <input className={inputCls} placeholder="Full name" value={adminForm.name} onChange={(e) => setAdminForm(f => ({ ...f, name: e.target.value }))} required />
-                    <input className={inputCls} type="email" placeholder="Email" value={adminForm.email} onChange={(e) => setAdminForm(f => ({ ...f, email: e.target.value }))} required />
-                    <input className={inputCls} type="password" placeholder="Password (min 8 chars)" minLength={8} value={adminForm.password} onChange={(e) => setAdminForm(f => ({ ...f, password: e.target.value }))} required />
-                    <motion.button {...btn} type="submit" disabled={creatingAdmin} className="w-full rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-60 transition">
-                      {creatingAdmin ? "Creating…" : "Create Admin"}
-                    </motion.button>
-                  </form>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-bold text-gray-800">Products ({products.length})</h2>
+        <button onClick={() => { setEditProduct(null); setForm({ name:"", price:"", category_id:"", description:"", is_featured:false }); setShowForm(true); }}
+          className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 transition">
+          <FaPlus className="h-3.5 w-3.5" /> Add Product
+        </button>
       </div>
 
-      {/* Products table */}
-      <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm lg:col-span-3">
-        <h2 className="mb-5 text-lg font-bold text-gray-800">
-          All Products <span className="ml-2 rounded-full bg-indigo-50 px-2.5 py-0.5 text-sm font-medium text-indigo-600">{products.length}</span>
-        </h2>
-        {loading ? <Spinner label="Loading products…" /> : products.length === 0 ? (
-          <p className="py-20 text-center text-gray-400">No products found.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
-                  <th className="pb-3 pr-3">Image</th><th className="pb-3 pr-3">Name</th>
-                  <th className="pb-3 pr-3">Price</th><th className="pb-3 pr-3">Status</th>
-                  <th className="pb-3 pr-3">Featured</th><th className="pb-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <AnimatePresence>
-                  {products.map((p, i) => {
-                    const pid = p.id ?? p._id;
-                    return (
-                      <motion.tr key={pid} custom={i} variants={fade} initial="hidden" animate="visible" exit={{ opacity: 0, x: 30 }} className="border-b last:border-0 hover:bg-gray-50 transition">
-                        <td className="py-3 pr-3">
-                          {p.main_image_url
-                            ? <img src={p.main_image_url} alt={p.name} className="h-10 w-10 rounded-lg object-cover shadow-sm" />
-                            : <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center text-gray-300"><FaBoxes /></div>}
-                        </td>
-                        <td className="py-3 pr-3 max-w-[130px]"><p className="truncate font-medium text-gray-800">{p.name}</p></td>
-                        <td className="py-3 pr-3 font-semibold">
-                          ${Number(p.price ?? 0).toFixed(2)}
-                          {p.discount_price && <span className="ml-1 text-xs text-gray-400 line-through">${Number(p.discount_price).toFixed(2)}</span>}
-                        </td>
-                        <td className="py-3 pr-3"><Badge status={p.status ?? "available"} /></td>
-                        <td className="py-3 pr-3">
-                          {p.is_featured ? <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-600">Yes</span> : <span className="text-xs text-gray-300">—</span>}
-                        </td>
-                        <td className="py-3">
-                          <div className="flex gap-1.5">
-                            <motion.button {...btn} onClick={() => startEdit(p)} className="rounded-lg bg-indigo-50 p-2 text-indigo-600 hover:bg-indigo-100 transition"><FaEdit className="h-3.5 w-3.5" /></motion.button>
-                            <motion.button {...btn} onClick={() => handleDelete(pid)} className="rounded-lg bg-rose-50 p-2 text-rose-600 hover:bg-rose-100 transition"><FaTrash className="h-3.5 w-3.5" /></motion.button>
-                          </div>
-                        </td>
-                      </motion.tr>
-                    );
-                  })}
-                </AnimatePresence>
-              </tbody>
-            </table>
-          </div>
-        )}
-      </motion.div>
-    </div>
-  );
-}
-
-// ─── Tab: Users ───────────────────────────────────────────────────────────────
-function UsersTab({ adminToken }) {
-  const [users, setUsers]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [total, setTotal]     = useState(0);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const d = await getAdminUsers(adminToken, { limit: 50 });
-        setUsers(d?.users ?? []);
-        setTotal(d?.pagination?.total ?? 0);
-      } catch (e) { toast.error(e.message); }
-      finally { setLoading(false); }
-    })();
-  }, [adminToken]);
-
-  if (loading) return <Spinner label="Loading users…" />;
-
-  return (
-    <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-lg font-bold text-gray-800">
-        Registered Users <span className="ml-2 rounded-full bg-indigo-50 px-2.5 py-0.5 text-sm font-medium text-indigo-600">{total}</span>
-      </h2>
-      {users.length === 0 ? (
-        <p className="py-20 text-center text-gray-400">No users yet.</p>
-      ) : (
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
-                <th className="pb-3 pr-4">ID</th><th className="pb-3 pr-4">Name</th>
-                <th className="pb-3 pr-4">Email</th><th className="pb-3 pr-4">Phone</th>
-                <th className="pb-3 pr-4">Role</th><th className="pb-3">Joined</th>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Product</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Price</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Featured</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {users.map((u, i) => (
-                <motion.tr key={u.id} custom={i} variants={fade} initial="hidden" animate="visible" className="border-b last:border-0 hover:bg-gray-50 transition">
-                  <td className="py-3 pr-4 font-mono text-xs text-gray-400">#{String(u.id).slice(-4)}</td>
-                  <td className="py-3 pr-4 font-medium text-gray-800">{u.name}</td>
-                  <td className="py-3 pr-4 text-gray-600 max-w-[180px] truncate">{u.email}</td>
-                  <td className="py-3 pr-4 text-gray-500">{u.phone ?? "—"}</td>
-                  <td className="py-3 pr-4"><Badge status={u.role} /></td>
-                  <td className="py-3 text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString()}</td>
-                </motion.tr>
+              {products.map((p) => (
+                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      {p.main_image_url ? (
+                        <img src={p.main_image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                      ) : (
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg" />
+                      )}
+                      <div>
+                        <p className="font-semibold text-gray-900 line-clamp-1">{p.name}</p>
+                        {p.sku && <p className="text-xs text-gray-400">SKU: {p.sku}</p>}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-gray-900">${Number(p.price).toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <Badge variant={p.status === "available" ? "success" : p.status === "low_stock" ? "warning" : "danger"}>
+                      {p.status?.replace("_"," ")}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3">
+                    {p.is_featured ? <Badge variant="info">Featured</Badge> : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => { setEditProduct(p); setForm({ name:p.name, price:p.price, category_id:p.category_id, description:p.description, is_featured:p.is_featured }); setShowForm(true); }}
+                      className="p-2 text-gray-400 hover:text-gray-700 transition">
+                      <FaEdit className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => { if(window.confirm("Delete this product?")) deleteProduct(p.id, { onSuccess:()=>toast.success("Deleted"), onError:(e)=>toast.error(e.message) }); }}
+                      className="p-2 text-gray-400 hover:text-rose-500 transition ml-1">
+                      <FaTrash className="h-3.5 w-3.5" />
+                    </button>
+                  </td>
+                </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-    </motion.div>
+      </div>
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title={editProduct ? "Edit Product" : "Add Product"}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {[["name","Product Name","text",true],["price","Price","number",true],["category_id","Category ID","number",false],["description","Description","text",false]].map(([k,l,t,req])=>(
+            <div key={k}>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{l}{req&&" *"}</label>
+              <input type={t} required={req} value={form[k]} onChange={(e)=>setForm(f=>({...f,[k]:e.target.value}))}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-gray-900 outline-none" />
+            </div>
+          ))}
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" checked={form.is_featured} onChange={(e)=>setForm(f=>({...f,is_featured:e.target.checked}))} className="accent-gray-900" />
+            Featured product
+          </label>
+          <button type="submit" disabled={creating||updating} className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white disabled:opacity-60 transition flex items-center justify-center gap-2">
+            {(creating||updating) && <Spinner size="sm" />}
+            {editProduct ? "Update Product" : "Create Product"}
+          </button>
+        </form>
+      </Modal>
+    </div>
   );
 }
 
-// ─── Tab: Stock Alerts ────────────────────────────────────────────────────────
-function StockAlertsTab({ adminToken }) {
-  const [alerts, setAlerts]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [resolving, setResolving] = useState(null);
+// ── Users tab ─────────────────────────────────────────────────────────────────
+function UsersTab() {
+  const { data, isLoading } = useAdminUsers({ limit: 50 });
+  const users = data?.users ?? [];
 
-  const load = useCallback(async () => {
-    try {
-      setLoading(true);
-      const d = await getStockAlerts(adminToken);
-      const list = Array.isArray(d) ? d : d?.alerts ?? [];
-      setAlerts(list.filter((a) => !a.resolved_at && !a.is_resolved));
-    } catch (e) { toast.error(e.message); }
-    finally { setLoading(false); }
-  }, [adminToken]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const handleResolve = async (id) => {
-    try {
-      setResolving(id);
-      await resolveStockAlert(id, adminToken);
-      setAlerts((prev) => prev.filter((a) => a.id !== id));
-      toast.success("Alert resolved");
-    } catch (e) { toast.error(e.message); }
-    finally { setResolving(null); }
-  };
-
-  if (loading) return <Spinner label="Loading stock alerts…" />;
-  if (alerts.length === 0) {
-    return (
-      <motion.div variants={fade} initial="hidden" animate="visible" className="flex flex-col items-center justify-center gap-4 py-28">
-        <div className="h-20 w-20 rounded-full bg-emerald-100 flex items-center justify-center">
-          <FaCheck className="h-8 w-8 text-emerald-500" />
-        </div>
-        <p className="text-xl font-bold text-gray-700">All clear!</p>
-        <p className="text-sm text-gray-400">No stock alerts right now.</p>
-      </motion.div>
-    );
-  }
+  if (isLoading) return <div className="space-y-3">{Array.from({length:5},(_,i)=><SkeletonRow key={i}/>)}</div>;
 
   return (
-    <motion.div variants={fade} initial="hidden" animate="visible" className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-lg font-bold text-gray-800">
-        Stock Alerts <span className="ml-2 rounded-full bg-rose-50 px-2.5 py-0.5 text-sm font-medium text-rose-600">{alerts.length}</span>
-      </h2>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px] text-sm">
-          <thead>
-            <tr className="border-b text-left text-xs uppercase tracking-wider text-gray-400">
-              <th className="pb-3 pr-4">Product</th><th className="pb-3 pr-4">Color</th>
-              <th className="pb-3 pr-4">Size</th><th className="pb-3 pr-4">Qty</th>
-              <th className="pb-3 pr-4">Type</th><th className="pb-3 pr-4">Date</th>
-              <th className="pb-3">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <AnimatePresence>
-              {alerts.map((a, i) => (
-                <motion.tr key={a.id} custom={i} variants={fade} initial="hidden" animate="visible" exit={{ opacity: 0, x: 30 }} layout className="border-b last:border-0 hover:bg-gray-50 transition">
-                  <td className="py-3 pr-4 font-medium text-gray-800">{a.product_name ?? "—"}</td>
-                  <td className="py-3 pr-4 text-gray-500">{a.color ?? "—"}</td>
-                  <td className="py-3 pr-4 text-gray-500">{a.size  ?? "—"}</td>
-                  <td className="py-3 pr-4 font-bold text-gray-700">{a.current_quantity ?? a.quantity ?? 0}</td>
-                  <td className="py-3 pr-4"><Badge status={a.alert_type ?? a.type} /></td>
-                  <td className="py-3 pr-4 text-xs text-gray-400">{a.created_at ? new Date(a.created_at).toLocaleDateString() : "—"}</td>
-                  <td className="py-3">
-                    <motion.button {...btn} onClick={() => handleResolve(a.id)} disabled={resolving === a.id}
-                      className="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 transition">
-                      {resolving === a.id ? <span className="h-3 w-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" /> : <FaCheck className="h-3 w-3" />}
-                      Resolve
-                    </motion.button>
+    <div>
+      <h2 className="text-base font-bold text-gray-800 mb-4">Users ({data?.pagination?.total ?? users.length})</h2>
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">User</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Phone</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Joined</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-gray-900">{u.name}</p>
+                    <p className="text-xs text-gray-400">{u.email}</p>
                   </td>
-                </motion.tr>
+                  <td className="px-4 py-3 text-gray-600">{u.phone || "—"}</td>
+                  <td className="px-4 py-3 text-gray-500 text-xs">{new Date(u.created_at).toLocaleDateString()}</td>
+                  <td className="px-4 py-3"><Badge variant={u.is_active !== false ? "success" : "danger"}>{u.is_active !== false ? "Active" : "Inactive"}</Badge></td>
+                </tr>
               ))}
-            </AnimatePresence>
-          </tbody>
-        </table>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
-// ─── Root ─────────────────────────────────────────────────────────────────────
-export default function AdminDashboard() {
-  const { adminToken } = useContext(ShopContext);
-  const navigate = useNavigate();
-  const [tab, setTab]              = useState("overview");
-  const [stats, setStats]          = useState(null);
-  const [loadingStats, setLoading] = useState(true);
+// ── Brands tab ────────────────────────────────────────────────────────────────
+function BrandsTab() {
+  const { data: brands = [], isLoading } = useAdminBrands();
+  const { mutate: create, isPending: creating } = useCreateBrand();
+  const { mutate: update } = useUpdateBrand();
+  const { mutate: remove } = useDeleteBrand();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ name:"", description:"", logo_url:"", website_url:"" });
 
-  useEffect(() => { if (!adminToken) navigate("/login"); }, [adminToken, navigate]);
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    create(form, {
+      onSuccess: () => { toast.success("Brand created"); setShowForm(false); setForm({name:"",description:"",logo_url:"",website_url:""}); },
+      onError: (e) => toast.error(e.message),
+    });
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-base font-bold text-gray-800">Brands ({brands.length})</h2>
+        <button onClick={() => setShowForm(true)} className="flex items-center gap-2 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700 transition">
+          <FaPlus className="h-3.5 w-3.5" /> Add Brand
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {brands.map((b) => (
+          <div key={b.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3 shadow-sm">
+            {b.logo_url ? <img src={b.logo_url} alt="" className="w-12 h-12 rounded-xl object-contain" /> : <div className="w-12 h-12 bg-gray-100 rounded-xl" />}
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900 truncate">{b.name}</p>
+              <p className="text-xs text-gray-400">{b.product_count ?? 0} products</p>
+            </div>
+            <button onClick={() => { if(window.confirm("Delete brand?")) remove(b.id, { onSuccess:()=>toast.success("Brand deleted"), onError:(e)=>toast.error(e.message) }); }}
+              className="p-2 text-gray-300 hover:text-rose-500 transition">
+              <FaTrash className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <Modal open={showForm} onClose={() => setShowForm(false)} title="Add Brand">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {[["name","Brand Name",true],["logo_url","Logo URL",false],["website_url","Website URL",false],["description","Description",false]].map(([k,l,req])=>(
+            <div key={k}>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">{l}{req&&" *"}</label>
+              <input required={req} value={form[k]} onChange={(e)=>setForm(f=>({...f,[k]:e.target.value}))}
+                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-gray-900 outline-none" />
+            </div>
+          ))}
+          <button type="submit" disabled={creating} className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white disabled:opacity-60 transition">
+            {creating ? "Creating…" : "Create Brand"}
+          </button>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+// ── Notifications tab ─────────────────────────────────────────────────────────
+function NotificationsTab() {
+  const { mutate: send, isPending } = useSendNotification();
+  const [form, setForm] = useState({ title:"", message:"", type:"promo", user_id:"" });
+
+  const handleSend = (e) => {
+    e.preventDefault();
+    const payload = { ...form, user_id: form.user_id ? Number(form.user_id) : undefined };
+    send(payload, {
+      onSuccess: () => { toast.success("Notification sent!"); setForm({ title:"", message:"", type:"promo", user_id:"" }); },
+      onError: (e) => toast.error(e.message),
+    });
+  };
+
+  return (
+    <div className="max-w-lg">
+      <h2 className="text-base font-bold text-gray-800 mb-4">Send Notification</h2>
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <form onSubmit={handleSend} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Target User ID (blank = broadcast)</label>
+            <input type="number" value={form.user_id} onChange={(e)=>setForm(f=>({...f,user_id:e.target.value}))} placeholder="Leave blank to broadcast to all users"
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-gray-900 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Type</label>
+            <select value={form.type} onChange={(e)=>setForm(f=>({...f,type:e.target.value}))}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-gray-900 outline-none">
+              {["promo","order","system","stock"].map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Title *</label>
+            <input required value={form.title} onChange={(e)=>setForm(f=>({...f,title:e.target.value}))}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-gray-900 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Message *</label>
+            <textarea required rows={4} value={form.message} onChange={(e)=>setForm(f=>({...f,message:e.target.value}))}
+              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-gray-900 outline-none resize-none" />
+          </div>
+          <button type="submit" disabled={isPending} className="w-full rounded-xl bg-gray-900 py-3 text-sm font-semibold text-white disabled:opacity-60 transition flex items-center justify-center gap-2">
+            {isPending && <Spinner size="sm" />}
+            <FaBell className="h-4 w-4" /> Send Notification
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Stock alerts tab ──────────────────────────────────────────────────────────
+function StockTab() {
+  const { data: alerts = [], isLoading } = useStockAlerts();
+  const { mutate: resolve } = useResolveStockAlert();
+
+  return (
+    <div>
+      <h2 className="text-base font-bold text-gray-800 mb-4">Stock Alerts ({alerts.length})</h2>
+      {isLoading ? (
+        <div className="space-y-3">{Array.from({length:4},(_,i)=><SkeletonRow key={i}/>)}</div>
+      ) : alerts.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-400">
+          <FaExclamationTriangle className="mx-auto h-10 w-10 text-gray-200 mb-3" />
+          <p className="text-sm font-medium">No active stock alerts</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          {alerts.map((a) => (
+            <div key={a.id} className="flex items-center gap-4 p-4 border-b border-gray-50 last:border-0">
+              <div className={`w-2 h-2 rounded-full shrink-0 ${a.alert_type==="out_of_stock" ? "bg-red-500" : "bg-amber-500"}`} />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 text-sm truncate">{a.product_name}</p>
+                <p className="text-xs text-gray-400">{a.color_name} / {a.size_name} — Qty: {a.quantity}</p>
+              </div>
+              <Badge variant={a.alert_type==="out_of_stock"?"danger":"warning"}>
+                {a.alert_type?.replace("_"," ")}
+              </Badge>
+              <button onClick={() => resolve(a.id, { onSuccess:()=>toast.success("Alert resolved"), onError:(e)=>toast.error(e.message) })}
+                className="text-xs text-gray-400 hover:text-emerald-600 underline shrink-0">
+                Resolve
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Overview tab ──────────────────────────────────────────────────────────────
+function OverviewTab() {
+  const { data: overview, isLoading: loadingOverview } = useAnalyticsOverview();
+  const { data: salesData = [], isLoading: loadingSales } = useSalesChart(30);
+  const { data: topProducts = [], isLoading: loadingTop } = useTopProducts(8);
+
+  const COLORS = ["#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#06B6D4"];
+
+  if (loadingOverview) return <FullPageSpinner />;
+
+  const rev = overview?.revenue;
+  const ord = overview?.orders;
+  const usr = overview?.users;
+  const pro = overview?.products;
+
+  return (
+    <div className="space-y-6">
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Total Revenue" value={`$${Number(rev?.total_revenue ?? 0).toLocaleString()}`} sub={`$${Number(rev?.month_revenue ?? 0).toLocaleString()} this month`} icon={FaDollarSign} color="indigo" trend={rev?.revenue_growth_pct} />
+        <StatCard title="Total Orders"  value={ord?.total_orders ?? 0} sub={`${ord?.orders_7d ?? 0} this week`} icon={FaShoppingCart} color="emerald" />
+        <StatCard title="Customers"     value={usr?.total_users ?? 0}  sub={`+${usr?.new_users_30d ?? 0} this month`} icon={FaUsers} color="amber" />
+        <StatCard title="Products"      value={pro?.total_products ?? 0} sub={`${pro?.low_stock ?? 0} low stock`} icon={FaBoxes} color="rose" />
+      </div>
+
+      {/* Sales chart */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <h3 className="text-sm font-bold text-gray-800 mb-4">Revenue — Last 30 Days</h3>
+        {loadingSales ? (
+          <div className="h-48 flex items-center justify-center"><Spinner /></div>
+        ) : (
+          <ResponsiveContainer width="100%" height={220}>
+            <AreaChart data={salesData} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor="#6366F1" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="date" tickFormatter={(d) => new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"})} tick={{ fontSize: 11 }} />
+              <YAxis tickFormatter={(v) => `$${v}`} tick={{ fontSize: 11 }} width={55} />
+              <Tooltip formatter={(v) => [`$${Number(v).toFixed(2)}`, "Revenue"]} labelFormatter={(d)=>new Date(d).toLocaleDateString()} />
+              <Area type="monotone" dataKey="revenue" stroke="#6366F1" strokeWidth={2} fill="url(#revGradient)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {/* Order status + top products */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Order breakdown */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-sm font-bold text-gray-800 mb-4">Order Status Breakdown</h3>
+          <div className="space-y-3">
+            {[
+              { key: "pending",    label: "Pending",    val: ord?.pending_orders    ?? 0, color: "bg-amber-400" },
+              { key: "processing", label: "Processing", val: ord?.processing_orders ?? 0, color: "bg-blue-400" },
+              { key: "shipped",    label: "Shipped",    val: ord?.shipped_orders    ?? 0, color: "bg-indigo-400" },
+              { key: "delivered",  label: "Delivered",  val: ord?.delivered_orders  ?? 0, color: "bg-emerald-400" },
+              { key: "cancelled",  label: "Cancelled",  val: ord?.cancelled_orders  ?? 0, color: "bg-rose-400" },
+            ].map(({ label, val, color }) => {
+              const total = ord?.total_orders || 1;
+              return (
+                <div key={label}>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-gray-600 font-medium">{label}</span>
+                    <span className="text-gray-900 font-bold">{val}</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${Math.round((val / total) * 100)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Top products */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h3 className="text-sm font-bold text-gray-800 mb-4">Top Selling Products</h3>
+          {loadingTop ? (
+            <div className="space-y-3">{Array.from({length:5},(_,i)=><SkeletonRow key={i}/>)}</div>
+          ) : (
+            <div className="space-y-3">
+              {topProducts.slice(0, 5).map((p, i) => (
+                <div key={p.id} className="flex items-center gap-3">
+                  <span className="w-5 text-xs font-bold text-gray-400">{i + 1}</span>
+                  {p.main_image_url ? (
+                    <img src={p.main_image_url} alt="" className="w-8 h-8 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-900 truncate">{p.name}</p>
+                    <p className="text-xs text-gray-400">{p.units_sold} sold</p>
+                  </div>
+                  <span className="text-xs font-bold text-gray-900">${Number(p.revenue).toFixed(0)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Admin Dashboard ──────────────────────────────────────────────────────
+const TABS = [
+  { id: "overview",       label: "Overview",       icon: FaTachometerAlt },
+  { id: "products",       label: "Products",       icon: FaBoxes },
+  { id: "users",          label: "Users",          icon: FaUsers },
+  { id: "brands",         label: "Brands",         icon: FaTag },
+  { id: "notifications",  label: "Notifications",  icon: FaBell },
+  { id: "stock",          label: "Stock Alerts",   icon: FaExclamationTriangle },
+];
+
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const { adminToken } = useAuthStore();
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
-    if (!adminToken || tab !== "overview") return;
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const d = await getDashboardStats(adminToken);
-        if (!cancelled) setStats(d);
-      } catch (e) { if (!cancelled) toast.error(e.message); }
-      finally { if (!cancelled) setLoading(false); }
-    })();
-    return () => { cancelled = true; };
-  }, [adminToken, tab]);
+    if (!adminToken) navigate("/login");
+  }, [adminToken, navigate]);
 
   if (!adminToken) return null;
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AdminSidebar activeTab={tab} setTab={setTab} />
+      <AdminSidebar activeTab={activeTab} setTab={setActiveTab} />
 
       <div className="md:ml-60">
-        <div className="p-4 md:p-8">
+        {/* Top bar */}
+        <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+          <div className="flex items-center gap-2 overflow-x-auto px-4 py-1 scrollbar-hide md:hidden">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setActiveTab(id)}
+                className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition ${activeTab === id ? "bg-indigo-600 text-white" : "text-gray-500 hover:text-gray-800"}`}>
+                <Icon className="h-3.5 w-3.5" />{label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* Breadcrumb */}
+          <div className="mb-6">
+            <h1 className="text-xl font-extrabold text-gray-900 capitalize">{activeTab.replace("-"," ")}</h1>
+            <p className="text-sm text-gray-400">Murad & Sabah Store — Admin</p>
+          </div>
+
           <AnimatePresence mode="wait">
-            <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>
-              {tab === "overview" && <OverviewTab stats={stats} loading={loadingStats} onStockTab={() => setTab("stock")} />}
-              {tab === "products" && <ProductsTab adminToken={adminToken} />}
-              {tab === "users"    && <UsersTab    adminToken={adminToken} />}
-              {tab === "stock"    && <StockAlertsTab adminToken={adminToken} />}
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+              {activeTab === "overview"      && <OverviewTab />}
+              {activeTab === "products"      && <ProductsTab adminToken={adminToken} />}
+              {activeTab === "users"         && <UsersTab />}
+              {activeTab === "brands"        && <BrandsTab />}
+              {activeTab === "notifications" && <NotificationsTab />}
+              {activeTab === "stock"         && <StockTab />}
             </motion.div>
           </AnimatePresence>
         </div>
