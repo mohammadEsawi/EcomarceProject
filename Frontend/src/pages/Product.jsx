@@ -215,7 +215,7 @@ function ReviewSection({ productId }) {
                 </span>
               </div>
               <p className="text-sm text-gray-600 mt-2 leading-relaxed">{r.body}</p>
-              <p className="text-xs text-gray-400 mt-2">— {r.reviewer_name ?? "Anonymous"}</p>
+              <p className="text-xs text-gray-400 mt-2">— {r.user_name ?? "Anonymous"}</p>
             </div>
           ))}
         </div>

@@ -53,6 +53,7 @@ export function useProductReviews(productId) {
   return useQuery({
     queryKey: keys.reviews(productId),
     queryFn:  () => api.get(`/reviews/product/${productId}`),
+    select:   (d) => d?.reviews ?? [],
     enabled:  !!productId,
   });
 }

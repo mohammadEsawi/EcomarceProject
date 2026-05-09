@@ -1,4 +1,5 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -6,7 +7,7 @@ import {
   FaDollarSign, FaSearch, FaSyncAlt, FaTruck,
 } from "react-icons/fa";
 import { getAllOrders, updateOrderStatus } from "../api/client";
-import { ShopContext } from "../context/ShopContextProvider";
+import { useAuthStore } from "../store/authStore";
 import AdminSidebar from "../components/AdminSidebar";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -155,7 +156,8 @@ function EmptyState() {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AdminOrders() {
-  const { adminToken, navigate } = useContext(ShopContext);
+  const adminToken = useAuthStore((s) => s.adminToken);
+  const navigate = useNavigate();
 
   // ── Filter state ──
   const [filterStatus, setFilterStatus] = useState("all");
@@ -189,7 +191,7 @@ export default function AdminOrders() {
           ...(dateFrom && { date_from: dateFrom }),
           ...(dateTo && { date_to: dateTo }),
         };
-        const data = await getAllOrders(adminToken, params);
+        const data = await getAllOrders(params);
         setOrders(Array.isArray(data) ? data : data?.orders ?? []);
         if (data?.pagination) setPagination(data.pagination);
         else
@@ -234,7 +236,7 @@ export default function AdminOrders() {
     if (!newStatus || updatingId === orderId) return;
     setUpdatingId(orderId);
     try {
-      await updateOrderStatus(orderId, newStatus, adminToken);
+      await updateOrderStatus(orderId, newStatus);
       setOrders((prev) =>
         prev.map((o) =>
           (o.id ?? o._id) === orderId ? { ...o, status: newStatus } : o,

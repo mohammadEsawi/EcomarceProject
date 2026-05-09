@@ -1,13 +1,12 @@
-import React, { useState, useContext } from "react";
+import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash } from "react-icons/fa";
 import { toast } from "react-toastify";
-import { userLogin } from "../api/client";
-import { ShopContext } from "../context/ShopContextProvider";
+import { useAuthStore } from "../store/authStore";
 import loginImage from "../assets/login.png";
 
 export default function Login() {
-  const { setToken, setUser, setAdminToken, setAdminUser } = useContext(ShopContext);
+  const { login } = useAuthStore();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw]     = useState(false);
@@ -22,17 +21,12 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const data = await userLogin(email, password);
-      // data = { user, token, role }
+      const data = await login(email, password);
 
       if (data.role === "admin") {
-        setAdminToken(data.token);
-        setAdminUser(data.user);
         toast.success("Welcome back, Admin!");
         navigate("/admin/dashboard");
       } else {
-        setToken(data.token);
-        setUser(data.user);
         toast.success("Login successful!");
         navigate("/");
       }

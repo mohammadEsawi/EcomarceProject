@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaMinus, FaPlus, FaTrash, FaShoppingBag, FaTag, FaTruck } from "react-icons/fa";
+import { FaMinus, FaPlus, FaTrash, FaShoppingBag, FaTag, FaTruck, FaImage } from "react-icons/fa";
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -85,37 +85,64 @@ export default function Cart() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, x: -20, height: 0 }}
                       transition={{ duration: 0.25 }}
-                      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-4"
+                      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"
                     >
                       {/* Image */}
                       <Link to={`/product/${item.productId}`} className="shrink-0">
                         {item.image ? (
-                          <img src={item.image} alt={item.name} className="w-20 h-20 rounded-xl object-cover" />
-                        ) : (
-                          <div className="w-20 h-20 bg-gray-100 rounded-xl" />
-                        )}
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-20 h-20 rounded-xl object-cover bg-gray-100"
+                            onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
+                          />
+                        ) : null}
+                        <div
+                          className="w-20 h-20 rounded-xl bg-gray-100 items-center justify-center"
+                          style={{ display: item.image ? "none" : "flex" }}
+                        >
+                          <FaImage className="h-7 w-7 text-gray-300" />
+                        </div>
                       </Link>
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
-                        <Link to={`/product/${item.productId}`}>
-                          <h3 className="font-semibold text-gray-900 text-sm hover:text-gray-600 transition line-clamp-1">{item.name}</h3>
-                        </Link>
-                        <div className="flex flex-wrap gap-2 mt-1 mb-3">
-                          {item.color && <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">{item.color}</span>}
-                          {item.size  && <span className="text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">Size: {item.size}</span>}
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <Link to={`/product/${item.productId}`}>
+                            <h3 className="font-semibold text-gray-900 text-sm hover:text-gray-600 transition line-clamp-2 leading-snug">{item.name}</h3>
+                          </Link>
+                          <button
+                            onClick={() => removeItem(item.productId, item.variantId)}
+                            className="shrink-0 p-1.5 text-gray-300 hover:text-rose-500 transition rounded-lg hover:bg-rose-50"
+                          >
+                            <FaTrash className="h-3.5 w-3.5" />
+                          </button>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          {/* Quantity */}
-                          <div className="flex items-center gap-1 bg-gray-50 rounded-xl p-1">
+                        {(item.color || item.size) && (
+                          <div className="flex flex-wrap gap-1.5 mb-2">
+                            {item.color && (
+                              <span className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
+                                {item.color}
+                              </span>
+                            )}
+                            {item.size && (
+                              <span className="inline-flex items-center text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
+                                Size {item.size}
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl p-1">
                             <button
                               onClick={() => updateQuantity(item.productId, item.variantId, item.quantity - 1)}
                               className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-200 transition text-gray-600"
                             >
                               <FaMinus className="h-2.5 w-2.5" />
                             </button>
-                            <span className="text-sm font-semibold text-gray-900 w-8 text-center">{item.quantity}</span>
+                            <span className="text-sm font-bold text-gray-900 w-7 text-center">{item.quantity}</span>
                             <button
                               onClick={() => updateQuantity(item.productId, item.variantId, item.quantity + 1)}
                               disabled={item.stock != null && item.quantity >= item.stock}
@@ -125,14 +152,11 @@ export default function Cart() {
                             </button>
                           </div>
 
-                          <div className="flex items-center gap-3">
+                          <div className="text-right">
                             <span className="font-bold text-gray-900">${(item.price * item.quantity).toFixed(2)}</span>
-                            <button
-                              onClick={() => removeItem(item.productId, item.variantId)}
-                              className="p-1.5 text-gray-300 hover:text-rose-500 transition rounded-lg hover:bg-rose-50"
-                            >
-                              <FaTrash className="h-3.5 w-3.5" />
-                            </button>
+                            {item.quantity > 1 && (
+                              <p className="text-xs text-gray-400">${item.price.toFixed(2)} each</p>
+                            )}
                           </div>
                         </div>
                       </div>
