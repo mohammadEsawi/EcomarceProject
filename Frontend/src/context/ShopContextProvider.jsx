@@ -44,7 +44,7 @@ export default function ShopContextProvider({ children }) {
           : data?.products || data?.data || [];
 
         if (prods.length === 0) {
-          setProducts(localProducts);
+          setProducts([]);
           return;
         }
 
@@ -58,7 +58,7 @@ export default function ShopContextProvider({ children }) {
 
         setProducts(normalized);
       } catch {
-        setProducts(localProducts);
+        setProducts([]);
       }
     }
 
