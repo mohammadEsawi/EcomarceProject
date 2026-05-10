@@ -8,6 +8,7 @@ import { FaMapMarkerAlt, FaCreditCard, FaCheckCircle, FaChevronRight, FaLock } f
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import { Spinner } from "../components/ui/Spinner";
+import { imgUrl } from "../lib/imageUrl";
 import { useCartStore } from "../store/cartStore";
 import { useAuthStore } from "../store/authStore";
 import { useCreateOrder } from "../hooks/useOrders";
@@ -84,7 +85,6 @@ export default function PlaceOrder() {
       product_id: i.productId,
       quantity:   i.quantity,
       unit_price: i.price,
-      color_name: i.color,
       size_name:  i.size,
       product_name: i.name,
     }));
@@ -229,13 +229,13 @@ export default function PlaceOrder() {
                         {items.map((item, i) => (
                           <div key={i} className="flex items-center gap-3">
                             {item.image ? (
-                              <img src={item.image} alt="" className="w-12 h-12 rounded-lg object-cover" />
+                              <img src={imgUrl(item.image)} alt="" className="w-12 h-12 rounded-lg object-cover" />
                             ) : (
                               <div className="w-12 h-12 bg-gray-100 rounded-lg" />
                             )}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                              <p className="text-xs text-gray-400">{[item.color, item.size && `Size: ${item.size}`, `Qty: ${item.quantity}`].filter(Boolean).join(" · ")}</p>
+                              <p className="text-xs text-gray-400">{[item.size && `Size: ${item.size}`, `Qty: ${item.quantity}`].filter(Boolean).join(" · ")}</p>
                             </div>
                             <span className="text-sm font-bold text-gray-900">${(item.price * item.quantity).toFixed(2)}</span>
                           </div>

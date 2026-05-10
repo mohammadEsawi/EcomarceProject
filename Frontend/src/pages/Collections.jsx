@@ -11,6 +11,7 @@ import { Modal } from "../components/ui/Modal";
 import { useProducts, useProduct } from "../hooks/useProducts";
 import { useUiStore } from "../store/uiStore";
 import { useCartStore } from "../store/cartStore";
+import { imgUrl } from "../lib/imageUrl";
 
 // ── Inline Quick-View ─────────────────────────────────────────────────────────
 function QuickViewModal({ product: stub, onClose }) {
@@ -32,7 +33,7 @@ function QuickViewModal({ product: stub, onClose }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="rounded-xl overflow-hidden bg-gray-50 aspect-square">
             <img
-              src={product.main_image_url || product.images?.[0]}
+              src={imgUrl(product.main_image_url || product.images?.[0])}
               alt={product.name}
               className="w-full h-full object-cover"
             />
@@ -78,7 +79,7 @@ function QuickViewModal({ product: stub, onClose }) {
                   variantId: selectedVariant?.id ?? product.id,
                   name:      product.name,
                   price,
-                  image:     product.main_image_url,
+                  image:     imgUrl(product.main_image_url),
                   color:     selectedVariant?.color_name,
                   size:      selectedVariant?.size_name,
                   stock:     selectedVariant?.stock,
@@ -125,15 +126,12 @@ export default function Collections() {
 
   const apiParams = useMemo(() => {
     const p = { sort: filters.sort, limit: 48 };
-    if (filters.category)      p.category_id = filters.category;
-    if (filters.brand)         p.brand_id    = filters.brand;
-    if (filters.gender)        p.gender      = filters.gender;
-    if (filters.minPrice)      p.min_price   = filters.minPrice;
-    if (filters.maxPrice)      p.max_price   = filters.maxPrice;
-    if (filters.sizes.length)  p.sizes       = filters.sizes.join(",");
-    if (filters.colors.length) p.colors      = filters.colors.join(",");
-    if (filters.inStock)       p.in_stock    = true;
-    if (search.trim())         p.search      = search.trim();
+    if (filters.category)     p.category_id = filters.category;
+    if (filters.minPrice)     p.min_price   = filters.minPrice;
+    if (filters.maxPrice)     p.max_price   = filters.maxPrice;
+    if (filters.sizes.length) p.sizes       = filters.sizes.join(",");
+    if (filters.inStock)      p.in_stock    = true;
+    if (search.trim())        p.search      = search.trim();
     return p;
   }, [filters, search]);
 
@@ -147,9 +145,10 @@ export default function Collections() {
   const total      = data?.pagination?.total ?? products.length;
 
   const activeCount = [
-    filters.category, filters.brand, filters.gender,
-    filters.minPrice, filters.maxPrice,
-    ...filters.sizes, ...filters.colors,
+    filters.category,
+    filters.minPrice,
+    filters.maxPrice,
+    ...filters.sizes,
     filters.inStock ? "1" : "",
   ].filter(Boolean).length;
 
@@ -185,12 +184,10 @@ export default function Collections() {
           {/* Active filter chips */}
           {activeCount > 0 && (
             <div className="max-w-7xl mx-auto px-4 pb-4 flex flex-wrap gap-2 items-center">
-              {filters.gender   && <Chip label={filters.gender} onRemove={() => setFilter("gender", "")} />}
               {filters.minPrice && <Chip label={`≥ $${filters.minPrice}`} onRemove={() => setFilter("minPrice", "")} />}
               {filters.maxPrice && <Chip label={`≤ $${filters.maxPrice}`} onRemove={() => setFilter("maxPrice", "")} />}
               {filters.inStock  && <Chip label="In Stock Only" onRemove={() => setFilter("inStock", false)} />}
-              {filters.sizes.map((s)  => <Chip key={s}  label={`Size: ${s}`}  onRemove={() => setFilter("sizes",  filters.sizes.filter((x)  => x !== s))} />)}
-              {filters.colors.map((c) => <Chip key={c}  label={`Color: ${c}`} onRemove={() => setFilter("colors", filters.colors.filter((x) => x !== c))} />)}
+              {filters.sizes.map((s) => <Chip key={s} label={`Size: ${s}`} onRemove={() => setFilter("sizes", filters.sizes.filter((x) => x !== s))} />)}
               <button onClick={resetFilters} className="text-xs text-gray-400 hover:text-gray-700 underline ml-1">
                 Clear all
               </button>

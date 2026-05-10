@@ -9,16 +9,18 @@ import {
   deleteProduct,
   uploadProductImages,
   addProductVariant,
+  addVariantByName,
+  getProductVariants,
+  deleteVariant,
   updateInventory,
 } from '../controllers/productController.js';
 import adminAuth from '../middleware/adminAuth.js';
-import { generalLimiter } from '../middleware/rateLimiter.js';
 import { uploadMultiple } from '../middleware/upload.js';
 
 const router = Router();
 
 // ── Public routes ────────────────────────────────────────────────────────────
-router.get('/', generalLimiter, getProducts);
+router.get('/', getProducts);
 router.get('/featured', getFeaturedProducts);
 router.get('/category/:slug', getProductsByCategory);
 router.get('/:id', getProduct);
@@ -28,7 +30,10 @@ router.post('/', adminAuth, createProduct);
 router.put('/:id', adminAuth, updateProduct);
 router.delete('/:id', adminAuth, deleteProduct);
 router.post('/:id/images', adminAuth, uploadMultiple, uploadProductImages);
+router.get('/:id/variants', adminAuth, getProductVariants);
 router.post('/:id/variants', adminAuth, addProductVariant);
+router.post('/:id/variants/simple', adminAuth, addVariantByName);
+router.delete('/variants/:variantId', adminAuth, deleteVariant);
 router.put('/variants/:variantId/inventory', adminAuth, updateInventory);
 
 export default router;

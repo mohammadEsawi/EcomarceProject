@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FaHeart, FaRegHeart, FaStar, FaRegStar, FaStarHalfAlt,
@@ -21,6 +21,7 @@ import { useProduct, useProducts, useProductReviews, useCreateReview } from "../
 import { useToggleWishlist, useIsWishlisted } from "../hooks/useWishlist";
 import { useCartStore } from "../store/cartStore";
 import { useAuthStore } from "../store/authStore";
+import { imgUrl } from "../lib/imageUrl";
 
 // ── Review star rating ────────────────────────────────────────────────────────
 function Stars({ rating, size = "sm" }) {
@@ -234,44 +235,25 @@ export default function Product() {
   const { data: product, isLoading, isError } = useProduct(productId);
   const { mutate: toggleWishlist } = useToggleWishlist();
   const wishlisted = useIsWishlisted(Number(productId));
+  const [selectedSize, setSelectedSize] = useState(null);
 
   // Track view
   useEffect(() => {
     if (product?.id && token) {
-      // Fire and forget — just update view count
       import("../lib/axios.js").then(({ default: api }) => {
         api.post(`/products/${product.id}/view`).catch(() => {});
       });
     }
   }, [product?.id, token]);
 
-  // Variants derived state
-  const variants = product?.variants ?? [];
-  const colors   = useMemo(() => [...new Map(variants.filter((v) => v.color_name).map((v) => [v.color_name, { name: v.color_name, hex: v.hex_code }])).values()], [variants]);
-  const [selectedColor, setSelectedColor] = useState(null);
-  const [selectedSize,  setSelectedSize]  = useState(null);
-
-  const filteredByColor = useMemo(
-    () => selectedColor ? variants.filter((v) => v.color_name === selectedColor) : variants,
-    [variants, selectedColor],
-  );
-  const sizes = useMemo(
-    () => [...new Set(filteredByColor.map((v) => v.size_name).filter(Boolean))],
-    [filteredByColor],
-  );
+  const sizes = product?.sizes ?? [];
 
   const selectedVariant = useMemo(
-    () => variants.find((v) => v.color_name === selectedColor && v.size_name === selectedSize),
-    [variants, selectedColor, selectedSize],
+    () => sizes.find((s) => s.size_name === selectedSize),
+    [sizes, selectedSize],
   );
 
-  const isOutOfStock = product?.status === "out_of_stock";
-  const stock        = selectedVariant?.stock ?? null;
-  const displayPrice = product ? Number(product.discount_price ?? product.price) : 0;
-  const originalPrice = product?.discount_price ? Number(product.price) : null;
-  const discount = originalPrice ? Math.round((1 - displayPrice / originalPrice) * 100) : 0;
-
-  // Related products
+  // Related products — called before any conditional return
   const { data: relatedData } = useProducts(
     product ? { category_id: product.category_id, limit: 6, sort: "popular" } : {},
   );
@@ -280,21 +262,29 @@ export default function Product() {
     return list.filter((p) => p.id !== Number(productId)).slice(0, 4);
   }, [relatedData, productId]);
 
+  if (!productId || productId === 'undefined' || Number.isNaN(Number(productId))) {
+    return <Navigate to="/collections" replace />;
+  }
+
+  const isOutOfStock = product?.status === "out_of_stock";
+  const stock        = selectedVariant?.stock_quantity ?? null;
+  const displayPrice = product ? Number(product.discount_price ?? product.price) : 0;
+  const originalPrice = product?.discount_price ? Number(product.price) : null;
+  const discount = originalPrice ? Math.round((1 - displayPrice / originalPrice) * 100) : 0;
+
   const handleAddToCart = (buyNow = false) => {
     if (!product) return;
-    const needsVariant = variants.length > 0;
-    if (needsVariant && (!selectedColor || !selectedSize)) {
-      toast.error("Please select color and size");
+    if (sizes.length > 0 && !selectedSize) {
+      toast.error("Please select a size");
       return;
     }
     if (stock !== null && stock === 0) { toast.error("Out of stock"); return; }
     addItem({
       productId: product.id,
-      variantId: selectedVariant?.id ?? product.id,
+      variantId: selectedVariant?.variant_id ?? product.id,
       name:      product.name,
       price:     displayPrice,
-      image:     product.main_image_url,
-      color:     selectedColor,
+      image:     imgUrl(product.main_image_url),
       size:      selectedSize,
       stock,
     });
@@ -309,7 +299,7 @@ export default function Product() {
     </div>
   );
 
-  const images = product.images?.map((i) => i.image_url ?? i) ?? [];
+  const images = product.images?.map((i) => imgUrl(i.image_url ?? i)).filter(Boolean) ?? [];
 
   return (
     <>
@@ -330,7 +320,7 @@ export default function Product() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Gallery */}
             <div>
-              <ProductGallery images={images} mainImage={product.main_image_url} />
+              <ProductGallery images={images} mainImage={imgUrl(product.main_image_url)} />
             </div>
 
             {/* Details */}
@@ -368,29 +358,6 @@ export default function Product() {
                 )}
               </div>
 
-              {/* Color selector */}
-              {colors.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Color</span>
-                    {selectedColor && <span className="text-sm text-gray-600">{selectedColor}</span>}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {colors.map(({ name, hex }) => (
-                      <button
-                        key={name}
-                        title={name}
-                        onClick={() => { setSelectedColor(name); setSelectedSize(null); }}
-                        className={`w-9 h-9 rounded-full border-2 transition-all ${
-                          selectedColor === name ? "border-gray-900 scale-110" : "border-transparent hover:border-gray-300"
-                        }`}
-                        style={{ backgroundColor: hex || name }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Size selector */}
               {sizes.length > 0 && (
                 <div>
@@ -400,22 +367,21 @@ export default function Product() {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {sizes.map((s) => {
-                      const v       = filteredByColor.find((vv) => vv.size_name === s);
-                      const inStock = (v?.stock ?? 0) > 0;
+                      const inStock = (s.stock_quantity ?? 0) > 0;
                       return (
                         <button
-                          key={s}
+                          key={s.variant_id}
                           disabled={!inStock}
-                          onClick={() => setSelectedSize(s)}
+                          onClick={() => setSelectedSize(s.size_name)}
                           className={`min-w-[44px] px-3 py-2 rounded-xl text-sm font-semibold border transition ${
-                            selectedSize === s
+                            selectedSize === s.size_name
                               ? "bg-gray-900 text-white border-gray-900"
                               : inStock
                               ? "border-gray-200 text-gray-700 hover:border-gray-900"
                               : "border-gray-100 text-gray-300 cursor-not-allowed relative"
                           }`}
                         >
-                          {s}
+                          {s.size_name}
                           {!inStock && (
                             <span className="absolute inset-0 flex items-center justify-center">
                               <span className="w-full border-t border-gray-300 absolute" />

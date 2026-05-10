@@ -11,10 +11,13 @@ export function useProducts(params = {}) {
 }
 
 export function useProduct(id) {
+  const numId = Number(id);
+  const valid  = !!id && id !== 'undefined' && !Number.isNaN(numId) && numId > 0;
   return useQuery({
     queryKey: keys.product(id),
     queryFn:  () => api.get(`/products/${id}`),
-    enabled:  !!id,
+    select:   (d) => d?.product ?? d,
+    enabled:  valid,
   });
 }
 

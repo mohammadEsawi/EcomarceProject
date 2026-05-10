@@ -8,11 +8,18 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// ── Request interceptor: attach token ────────────────────────────────────────
+// ── Request interceptor: attach token + fix multipart uploads ────────────────
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('authToken') || localStorage.getItem('adminToken');
     if (token) config.headers.Authorization = `Bearer ${token}`;
+
+    // When sending FormData, remove the default Content-Type so the browser
+    // sets it automatically with the correct multipart boundary.
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     return config;
   },
   (error) => Promise.reject(error),

@@ -8,9 +8,30 @@ import { EmptyState } from "../components/ui/EmptyState";
 import { useCartStore } from "../store/cartStore";
 import { useAuthStore } from "../store/authStore";
 import api from "../lib/axios";
+import { imgUrl } from "../lib/imageUrl";
 
 const SHIPPING_THRESHOLD = 100;
 const FLAT_SHIPPING      = 10;
+
+function ItemImage({ src, alt }) {
+  const [error, setError] = useState(false);
+  const url = imgUrl(src);
+  if (!url || error) {
+    return (
+      <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center shrink-0">
+        <FaImage className="h-7 w-7 text-gray-300" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="w-20 h-20 rounded-xl object-cover bg-gray-100 shrink-0"
+      onError={() => setError(true)}
+    />
+  );
+}
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -75,7 +96,7 @@ export default function Cart() {
             {/* Cart items */}
             <div className="lg:col-span-2 space-y-4">
               <AnimatePresence>
-                {items.map((item) => {
+                {items.filter((item) => item.productId && item.productId !== 'undefined').map((item) => {
                   const key = `${item.productId}-${item.variantId}`;
                   return (
                     <motion.div
@@ -88,21 +109,8 @@ export default function Cart() {
                       className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex gap-4 items-start"
                     >
                       {/* Image */}
-                      <Link to={`/product/${item.productId}`} className="shrink-0">
-                        {item.image ? (
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            className="w-20 h-20 rounded-xl object-cover bg-gray-100"
-                            onError={(e) => { e.currentTarget.style.display = "none"; e.currentTarget.nextSibling.style.display = "flex"; }}
-                          />
-                        ) : null}
-                        <div
-                          className="w-20 h-20 rounded-xl bg-gray-100 items-center justify-center"
-                          style={{ display: item.image ? "none" : "flex" }}
-                        >
-                          <FaImage className="h-7 w-7 text-gray-300" />
-                        </div>
+                      <Link to={`/product/${item.productId}`}>
+                        <ItemImage src={item.image} alt={item.name} />
                       </Link>
 
                       {/* Details */}
@@ -119,18 +127,11 @@ export default function Cart() {
                           </button>
                         </div>
 
-                        {(item.color || item.size) && (
+                        {item.size && (
                           <div className="flex flex-wrap gap-1.5 mb-2">
-                            {item.color && (
-                              <span className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-                                {item.color}
-                              </span>
-                            )}
-                            {item.size && (
-                              <span className="inline-flex items-center text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-                                Size {item.size}
-                              </span>
-                            )}
+                            <span className="inline-flex items-center text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
+                              Size {item.size}
+                            </span>
                           </div>
                         )}
 

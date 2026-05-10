@@ -1,14 +1,16 @@
 import rateLimit from 'express-rate-limit';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 /**
- * General limiter: 100 requests per 15 minutes.
- * Apply to all routes as a baseline protection.
+ * General limiter: 500 req/15 min in production, skipped in development.
  */
 export const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
-  standardHeaders: true,  // Return rate-limit info in RateLimit-* headers
-  legacyHeaders: false,   // Disable X-RateLimit-* headers
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  skip: () => isDev,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: {
     message: 'Too many requests. Please try again after 15 minutes.',
   },

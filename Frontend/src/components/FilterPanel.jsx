@@ -1,5 +1,4 @@
 import React from "react";
-import { motion } from "framer-motion";
 import { FaTimes } from "react-icons/fa";
 import { useUiStore } from "../store/uiStore.js";
 
@@ -10,25 +9,15 @@ const SORT_OPTIONS = [
   { value: "popular",   label: "Most Popular" },
 ];
 
-const GENDERS = ["men", "women", "unisex", "kids"];
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
-export default function FilterPanel({ categories = [], brands = [], onClose }) {
+export default function FilterPanel({ categories = [], onClose }) {
   const { filters, setFilter, resetFilters } = useUiStore();
 
-  const toggleSize  = (s) => setFilter("sizes",  filters.sizes.includes(s)  ? filters.sizes.filter((x) => x !== s)  : [...filters.sizes,  s]);
-  const toggleColor = (c) => setFilter("colors", filters.colors.includes(c) ? filters.colors.filter((x) => x !== c) : [...filters.colors, c]);
-
-  const SIZES  = ["XS", "S", "M", "L", "XL", "XXL"];
-  const COLORS = [
-    { name: "Black",  hex: "#000000" },
-    { name: "White",  hex: "#FFFFFF" },
-    { name: "Navy",   hex: "#1A237E" },
-    { name: "Red",    hex: "#D32F2F" },
-    { name: "Green",  hex: "#2E7D32" },
-    { name: "Beige",  hex: "#D7C5A0" },
-    { name: "Gray",   hex: "#757575" },
-    { name: "Blue",   hex: "#1565C0" },
-  ];
+  const toggleSize = (s) =>
+    setFilter("sizes", filters.sizes.includes(s)
+      ? filters.sizes.filter((x) => x !== s)
+      : [...filters.sizes, s]);
 
   const section = (title, children) => (
     <div className="border-b border-gray-100 pb-5 mb-5">
@@ -74,39 +63,6 @@ export default function FilterPanel({ categories = [], brands = [], onClose }) {
         </div>
       )}
 
-      {/* Brand */}
-      {brands.length > 0 && section("Brand",
-        <div className="space-y-2">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" name="brand" checked={!filters.brand} onChange={() => setFilter("brand", "")} className="accent-gray-900" />
-            <span>All</span>
-          </label>
-          {brands.map((b) => (
-            <label key={b.id} className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="radio" name="brand" checked={filters.brand === String(b.id)} onChange={() => setFilter("brand", String(b.id))} className="accent-gray-900" />
-              <span>{b.name}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {/* Gender */}
-      {section("Gender",
-        <div className="flex flex-wrap gap-2">
-          {["", ...GENDERS].map((g) => (
-            <button
-              key={g}
-              onClick={() => setFilter("gender", g)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                filters.gender === g ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-600 hover:border-gray-400"
-              }`}
-            >
-              {g ? g.charAt(0).toUpperCase() + g.slice(1) : "All"}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Price */}
       {section("Price Range",
         <div className="flex items-center gap-2">
@@ -131,23 +87,6 @@ export default function FilterPanel({ categories = [], brands = [], onClose }) {
             >
               {s}
             </button>
-          ))}
-        </div>
-      )}
-
-      {/* Colors */}
-      {section("Color",
-        <div className="flex flex-wrap gap-2">
-          {COLORS.map(({ name, hex }) => (
-            <button
-              key={name}
-              title={name}
-              onClick={() => toggleColor(name)}
-              className={`w-8 h-8 rounded-full border-2 transition ${
-                filters.colors.includes(name) ? "border-gray-900 scale-110" : "border-transparent hover:border-gray-300"
-              }`}
-              style={{ backgroundColor: hex }}
-            />
           ))}
         </div>
       )}

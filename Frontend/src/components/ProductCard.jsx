@@ -7,6 +7,7 @@ import { useAuthStore } from "../store/authStore.js";
 import { useToggleWishlist, useIsWishlisted } from "../hooks/useWishlist.js";
 import { useUiStore } from "../store/uiStore.js";
 import { toast } from "react-toastify";
+import { imgUrl } from "../lib/imageUrl.js";
 
 export default function ProductCard({ product, onQuickView }) {
   const [hovered, setHovered] = useState(false);
@@ -22,8 +23,8 @@ export default function ProductCard({ product, onQuickView }) {
 
   // Use main_image_url (API) or image array fallback
   const images = Array.isArray(product.images) ? product.images : [];
-  const mainImg   = product.main_image_url || images[0] || null;
-  const hoverImg  = images[1] || mainImg;
+  const mainImg   = imgUrl(product.main_image_url || images[0] || null);
+  const hoverImg  = imgUrl(images[1] || null) || mainImg;
 
   const isOutOfStock = product.status === "out_of_stock";
 

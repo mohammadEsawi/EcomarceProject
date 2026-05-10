@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import { ShopContext } from "../context/ShopContextProvider";
 import { getWishlist, removeWishlistItem } from "../api/client";
+import { imgUrl } from "../lib/imageUrl";
 
 export default function Wishlist() {
   const { token, navigate } = useContext(ShopContext);
@@ -100,7 +101,7 @@ export default function Wishlist() {
                       <Link to={`/product/${item.product_id}`} className="block overflow-hidden">
                         {item.main_image ? (
                           <img
-                            src={item.main_image}
+                            src={imgUrl(item.main_image)}
                             alt={item.name}
                             className="w-full h-60 object-cover group-hover:scale-105 transition-transform duration-300"
                           />

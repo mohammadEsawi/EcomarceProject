@@ -75,8 +75,7 @@ export async function getProducts(req, res, next) {
       category_id,
       min_price,
       max_price,
-      size_id,
-      color_id,
+      sizes,      // comma-separated size names e.g. "S,M,XL"
       in_stock,
       featured,
       sort = 'newest',
@@ -121,26 +120,19 @@ export async function getProducts(req, res, next) {
       }
     }
 
-    if (size_id) {
-      conditions.push(
-        `EXISTS (
-           SELECT 1 FROM product_variants pv
-            WHERE pv.product_id = p.id
-              AND pv.size_id    = ${push(parseInt(size_id, 10))}
-              AND TRUE
-         )`,
-      );
-    }
-
-    if (color_id) {
-      conditions.push(
-        `EXISTS (
-           SELECT 1 FROM product_variants pv
-            WHERE pv.product_id = p.id
-              AND pv.color_id   = ${push(parseInt(color_id, 10))}
-              AND TRUE
-         )`,
-      );
+    if (sizes?.trim()) {
+      const sizeNames = sizes.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+      if (sizeNames.length) {
+        conditions.push(
+          `EXISTS (
+             SELECT 1
+               FROM product_variants pv
+               JOIN sizes s ON s.id = pv.size_id
+              WHERE pv.product_id = p.id
+                AND UPPER(s.name) = ANY(${push(sizeNames)})
+           )`,
+        );
+      }
     }
 
     if (in_stock === 'true') {
@@ -300,46 +292,28 @@ export async function getProduct(req, res, next) {
       [productId],
     );
 
-    // ── variants grouped by color → sizes ────────────────────────────────────
-    // Returns one row per (color, size) combination that has an active variant.
+    // ── variants (sizes + stock) ──────────────────────────────────────────────
     const variantsResult = await query(
       `SELECT
-         col.id            AS color_id,
-         col.name          AS color_name,
-         col.hex_code      AS color_hex,
          s.id              AS size_id,
          s.name            AS size_name,
          s.display_order   AS size_display_order,
          pv.id             AS variant_id,
          COALESCE(inv.quantity, 0) AS stock_quantity
        FROM product_variants pv
-       JOIN colors col  ON col.id = pv.color_id
        JOIN sizes  s    ON s.id   = pv.size_id
        LEFT JOIN inventory inv ON inv.variant_id = pv.id
        WHERE pv.product_id = $1
-         AND TRUE
-       ORDER BY col.name ASC, s.display_order ASC`,
+       ORDER BY s.display_order ASC, s.name ASC`,
       [productId],
     );
 
-    // Build colors array: [ { color_id, color_name, color_hex, sizes: [...] } ]
-    const colorMap = new Map();
-    for (const row of variantsResult.rows) {
-      if (!colorMap.has(row.color_id)) {
-        colorMap.set(row.color_id, {
-          color_id:   row.color_id,
-          color_name: row.color_name,
-          color_hex:  row.color_hex,
-          sizes: [],
-        });
-      }
-      colorMap.get(row.color_id).sizes.push({
-        size_id:        row.size_id,
-        size_name:      row.size_name,
-        variant_id:     row.variant_id,
-        stock_quantity: parseInt(row.stock_quantity, 10),
-      });
-    }
+    const sizes = variantsResult.rows.map((row) => ({
+      size_id:        row.size_id,
+      size_name:      row.size_name,
+      variant_id:     row.variant_id,
+      stock_quantity: parseInt(row.stock_quantity, 10),
+    }));
 
     // Strip internal DB columns from the product row before returning
     delete product.password_hash; // guard – should never exist, but be safe
@@ -348,7 +322,7 @@ export async function getProduct(req, res, next) {
       product: {
         ...product,
         images: imagesResult.rows,
-        colors: [...colorMap.values()],
+        sizes,
       },
     });
   } catch (err) {
@@ -723,6 +697,135 @@ export async function updateInventory(req, res, next) {
     );
 
     return respond.success(res, { inventory: result.rows[0] }, 'Inventory updated successfully');
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// ─── getProductVariants ───────────────────────────────────────────────────────
+
+/**
+ * GET /api/products/:id/variants  (admin only)
+ * Returns all variants with color, size, and current stock for a product.
+ */
+export async function getProductVariants(req, res, next) {
+  try {
+    const productId = parseInt(req.params.id, 10);
+    if (Number.isNaN(productId)) return respond.error(res, 'Invalid product id', 400);
+
+    const { rows } = await query(
+      `SELECT
+         pv.id             AS variant_id,
+         s.id              AS size_id,
+         s.name            AS size_name,
+         s.display_order,
+         COALESCE(inv.quantity, 0) AS stock
+       FROM product_variants pv
+       JOIN sizes  s   ON s.id   = pv.size_id
+       LEFT JOIN inventory inv ON inv.variant_id = pv.id
+       WHERE pv.product_id = $1
+       ORDER BY s.display_order ASC, s.name ASC`,
+      [productId],
+    );
+    return respond.success(res, { variants: rows });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+// ─── addVariantByName ─────────────────────────────────────────────────────────
+
+/**
+ * POST /api/products/:id/variants/simple  (admin only)
+ * Body: { size_name, color_name, hex_code?, quantity }
+ * Upserts color + size by name, then creates the variant + inventory.
+ */
+export async function addVariantByName(req, res, next) {
+  try {
+    const productId = parseInt(req.params.id, 10);
+    if (Number.isNaN(productId)) return respond.error(res, 'Invalid product id', 400);
+
+    const { size_name, quantity = 0 } = req.body ?? {};
+    if (!size_name) {
+      return respond.error(res, 'size_name is required', 400);
+    }
+
+    const numQty = Math.max(0, parseInt(quantity, 10) || 0);
+
+    const result = await withTransaction(async (client) => {
+      // Always use the internal "Default" color (hidden from UI)
+      const { rows: colorRows } = await client.query(
+        `INSERT INTO colors (name, hex_code, created_at)
+         VALUES ('Default', '#000000', NOW())
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+      );
+      const colorId = colorRows[0].id;
+
+      // Upsert size
+      const { rows: sizeRows } = await client.query(
+        `INSERT INTO sizes (name, display_order, created_at)
+         VALUES ($1, 0, NOW())
+         ON CONFLICT (name) DO NOTHING
+         RETURNING id, name`,
+        [size_name.trim().toUpperCase()],
+      );
+      const sizeId = sizeRows[0]?.id ?? (
+        await client.query('SELECT id FROM sizes WHERE name = $1', [size_name.trim().toUpperCase()])
+      ).rows[0]?.id;
+
+      if (!sizeId) throw new Error('Failed to resolve size');
+
+      // Check for duplicate variant
+      const { rows: dupRows } = await client.query(
+        `SELECT id FROM product_variants WHERE product_id=$1 AND color_id=$2 AND size_id=$3`,
+        [productId, colorId, sizeId],
+      );
+      if (dupRows.length > 0) throw Object.assign(new Error('Size already exists for this product'), { statusCode: 409 });
+
+      // Insert variant
+      const { rows: varRows } = await client.query(
+        `INSERT INTO product_variants (product_id, color_id, size_id, created_at)
+         VALUES ($1, $2, $3, NOW()) RETURNING *`,
+        [productId, colorId, sizeId],
+      );
+      const variant = varRows[0];
+
+      // Upsert inventory
+      await client.query(
+        `INSERT INTO inventory (variant_id, quantity, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (variant_id) DO UPDATE SET quantity=$2, updated_at=NOW()`,
+        [variant.id, numQty],
+      );
+
+      return {
+        variant_id: variant.id,
+        size_id: sizeId,
+        size_name: size_name.trim().toUpperCase(),
+        stock: numQty,
+      };
+    });
+
+    return respond.created(res, { variant: result }, 'Variant added');
+  } catch (err) {
+    if (err.statusCode === 409) return respond.error(res, err.message, 409);
+    return next(err);
+  }
+}
+
+// ─── deleteVariant ────────────────────────────────────────────────────────────
+
+/**
+ * DELETE /api/products/variants/:variantId  (admin only)
+ */
+export async function deleteVariant(req, res, next) {
+  try {
+    const variantId = parseInt(req.params.variantId, 10);
+    if (Number.isNaN(variantId)) return respond.error(res, 'Invalid variant id', 400);
+
+    await query('DELETE FROM product_variants WHERE id = $1', [variantId]);
+    return respond.success(res, null, 'Variant deleted');
   } catch (err) {
     return next(err);
   }

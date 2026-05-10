@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -9,6 +9,7 @@ import {
   FaTachometerAlt, FaBoxes, FaUsers, FaExclamationTriangle,
   FaClipboardList, FaPlus, FaTrash, FaEdit, FaBell, FaTag, FaImage,
   FaDollarSign, FaArrowUp, FaArrowDown, FaShoppingCart, FaChartLine,
+  FaUpload, FaTimes, FaCamera,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import AdminSidebar from "../components/AdminSidebar";
@@ -27,6 +28,8 @@ import {
 import { useAllOrders, useUpdateOrderStatus } from "../hooks/useOrders";
 import { useProducts, useDeleteProduct, useCreateProduct, useUpdateProduct } from "../hooks/useProducts";
 import api from "../lib/axios";
+import { imgUrl } from "../lib/imageUrl";
+import { queryClient } from "../lib/queryClient";
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({ title, value, sub, icon: Icon, color = "indigo", trend }) {
@@ -62,12 +65,308 @@ function StatCard({ title, value, sub, icon: Icon, color = "indigo", trend }) {
   );
 }
 
+// ── Product image upload modal ────────────────────────────────────────────────
+function ProductImageModal({ product, onClose }) {
+  const [files, setFiles]       = useState([]);
+  const [previews, setPreviews] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef(null);
+
+  const addFiles = (fileList) => {
+    const imgs = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (!imgs.length) return;
+    setFiles((p) => [...p, ...imgs]);
+    setPreviews((p) => [...p, ...imgs.map((f) => URL.createObjectURL(f))]);
+  };
+
+  const removePreview = (idx) => {
+    URL.revokeObjectURL(previews[idx]);
+    setFiles((p) => p.filter((_, i) => i !== idx));
+    setPreviews((p) => p.filter((_, i) => i !== idx));
+  };
+
+  const handleUpload = async () => {
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      files.forEach((f) => formData.append("images", f));
+      await api.post(`/products/${product.id}/images`, formData);
+      toast.success(`${files.length} photo${files.length > 1 ? "s" : ""} uploaded!`);
+      previews.forEach((p) => URL.revokeObjectURL(p));
+      setFiles([]);
+      setPreviews([]);
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product", String(product.id)] });
+    } catch (err) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Modal open={true} onClose={onClose} title={`Product Photos — ${product.name}`} size="lg">
+      <div className="space-y-5">
+        {/* Current main photo */}
+        {product.main_image_url && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Current Main Photo</p>
+            <div className="flex items-center gap-3">
+              <img
+                src={imgUrl(product.main_image_url)}
+                alt={product.name}
+                className="w-20 h-20 rounded-xl object-cover border border-gray-100"
+              />
+              <div>
+                <p className="text-sm font-semibold text-gray-800">{product.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5">Upload new photos below to add more or replace</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Drop zone */}
+        <div
+          className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-colors ${
+            dragOver ? "border-gray-900 bg-gray-50" : "border-gray-200 hover:border-gray-400 hover:bg-gray-50"
+          }`}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
+          onClick={() => fileRef.current?.click()}
+        >
+          <FaCamera className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-sm font-semibold text-gray-700">Drop photos here or click to browse</p>
+          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — multiple files supported</p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => addFiles(e.target.files)}
+          />
+        </div>
+
+        {/* Preview grid */}
+        {previews.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Ready to upload — {previews.length} photo{previews.length > 1 ? "s" : ""}
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+              {previews.map((src, i) => (
+                <div key={i} className="relative group aspect-square">
+                  <img src={src} alt="" className="w-full h-full rounded-xl object-cover" />
+                  {i === 0 && (
+                    <span className="absolute bottom-1 left-1 bg-gray-900 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                      Main
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removePreview(i); }}
+                    className="absolute top-1 right-1 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                  >
+                    <FaTimes className="h-2.5 w-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mt-2">The first photo will be set as the main product image.</p>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:border-gray-400 transition"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={handleUpload}
+            disabled={!files.length || uploading}
+            className="flex-1 rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+          >
+            {uploading ? <Spinner size="sm" /> : <FaUpload className="h-3.5 w-3.5" />}
+            {uploading ? "Uploading…" : files.length ? `Upload ${files.length} Photo${files.length > 1 ? "s" : ""}` : "Upload Photos"}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Product variants (sizes + stock) modal ────────────────────────────────────
+function ProductVariantsModal({ product, onClose }) {
+  const [variants, setVariants] = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const [form, setForm] = useState({ size_name: "", quantity: "" });
+
+  const loadVariants = async () => {
+    setLoading(true);
+    try {
+      const data = await api.get(`/products/${product.id}/variants`);
+      setVariants(data?.variants ?? []);
+    } catch { setVariants([]); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadVariants(); }, [product.id]);
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!form.size_name.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/products/${product.id}/variants/simple`, {
+        size_name: form.size_name.trim().toUpperCase(),
+        quantity:  Number(form.quantity) || 0,
+      });
+      toast.success("Size added!");
+      setForm({ size_name: "", quantity: "" });
+      loadVariants();
+      queryClient.invalidateQueries({ queryKey: ["product", String(product.id)] });
+    } catch (err) {
+      toast.error(err.message || "Failed to add size");
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async (variantId) => {
+    if (!window.confirm("Remove this size?")) return;
+    setDeleting(variantId);
+    try {
+      await api.delete(`/products/variants/${variantId}`);
+      toast.success("Size removed");
+      setVariants((v) => v.filter((x) => x.variant_id !== variantId));
+      queryClient.invalidateQueries({ queryKey: ["product", String(product.id)] });
+    } catch (err) { toast.error(err.message); }
+    finally { setDeleting(null); }
+  };
+
+  const handleStockEdit = async (variantId, qty) => {
+    try {
+      await api.put(`/products/variants/${variantId}/inventory`, { quantity: Number(qty) });
+      setVariants((v) => v.map((x) => x.variant_id === variantId ? { ...x, stock: Number(qty) } : x));
+    } catch (err) { toast.error(err.message); }
+  };
+
+  const inputCls = "rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:border-gray-900 outline-none w-full";
+
+  return (
+    <Modal open={true} onClose={onClose} title={`Sizes & Stock — ${product.name}`} size="lg">
+      <div className="space-y-6">
+        {/* Add new variant */}
+        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100">
+          <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">Add New Size</p>
+          <form onSubmit={handleAdd} className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Size Name *</label>
+                <input
+                  className={inputCls}
+                  placeholder="S / M / L / XL / 42…"
+                  value={form.size_name}
+                  onChange={(e) => setForm((f) => ({ ...f, size_name: e.target.value }))}
+                  required
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">Stock Quantity *</label>
+                <input
+                  type="number" min="0"
+                  className={inputCls}
+                  placeholder="0"
+                  value={form.quantity}
+                  onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
+                  required
+                />
+              </div>
+            </div>
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full rounded-xl bg-gray-900 py-2.5 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-60 transition flex items-center justify-center gap-2"
+            >
+              {saving ? <Spinner size="sm" /> : <FaPlus className="h-3.5 w-3.5" />}
+              {saving ? "Adding…" : "Add Size"}
+            </button>
+          </form>
+        </div>
+
+        {/* Existing variants */}
+        <div>
+          <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3">
+            Current Sizes ({variants.length})
+          </p>
+          {loading ? (
+            <div className="space-y-2">{Array.from({ length: 3 }, (_, i) => <SkeletonRow key={i} />)}</div>
+          ) : variants.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-6">No sizes added yet.</p>
+          ) : (
+            <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="grid grid-cols-4 px-4 py-2 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <span>Size</span>
+                <span className="col-span-2">Stock</span>
+                <span className="text-right">Remove</span>
+              </div>
+              {variants.map((v) => (
+                <div key={v.variant_id} className="grid grid-cols-4 items-center px-4 py-3 gap-3">
+                  <span className="text-sm font-semibold text-gray-900">{v.size_name}</span>
+                  <div className="col-span-2 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      defaultValue={v.stock}
+                      className="w-20 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-center focus:border-gray-900 outline-none"
+                      onBlur={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (!Number.isNaN(val) && val !== v.stock) handleStockEdit(v.variant_id, val);
+                      }}
+                    />
+                    <span className="text-xs text-gray-400">units</span>
+                    {v.stock === 0 && (
+                      <span className="text-xs bg-rose-100 text-rose-600 font-semibold px-2 py-0.5 rounded-full">Out of stock</span>
+                    )}
+                    {v.stock > 0 && v.stock <= 5 && (
+                      <span className="text-xs bg-amber-100 text-amber-600 font-semibold px-2 py-0.5 rounded-full">Low</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <button
+                      onClick={() => handleDelete(v.variant_id)}
+                      disabled={deleting === v.variant_id}
+                      className="p-1.5 text-gray-300 hover:text-rose-500 transition rounded-lg hover:bg-rose-50 disabled:opacity-40"
+                    >
+                      <FaTrash className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 // ── Products tab ──────────────────────────────────────────────────────────────
 function ProductsTab({ adminToken }) {
   const { data, isLoading } = useProducts({ limit: 50 });
   const { mutate: deleteProduct, isPending: deleting } = useDeleteProduct();
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+  const [imageProduct, setImageProduct] = useState(null);
+  const [variantsProduct, setVariantsProduct] = useState(null);
   const { mutate: createProduct, isPending: creating } = useCreateProduct();
   const { mutate: updateProduct, isPending: updating } = useUpdateProduct();
   const [form, setForm] = useState({ name: "", price: "", category_id: "", description: "", is_featured: false });
@@ -79,12 +378,18 @@ function ProductsTab({ adminToken }) {
     if (editProduct) {
       updateProduct({ id: editProduct.id, ...form }, {
         onSuccess: () => { toast.success("Product updated"); setShowForm(false); setEditProduct(null); },
-        onError: (e) => toast.error(e.message),
+        onError: (err) => toast.error(err.message),
       });
     } else {
       createProduct(form, {
-        onSuccess: () => { toast.success("Product created"); setShowForm(false); },
-        onError: (e) => toast.error(e.message),
+        onSuccess: (data) => {
+          setShowForm(false);
+          // Auto-open image upload for the freshly created product
+          const created = data?.product ?? data;
+          if (created?.id) setImageProduct(created);
+          toast.success("Product created — add photos now!");
+        },
+        onError: (err) => toast.error(err.message),
       });
     }
   };
@@ -110,7 +415,7 @@ function ProductsTab({ adminToken }) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Price</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Featured</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Photos / Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -119,9 +424,11 @@ function ProductsTab({ adminToken }) {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       {p.main_image_url ? (
-                        <img src={p.main_image_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                        <img src={imgUrl(p.main_image_url)} alt="" className="w-10 h-10 rounded-lg object-cover" />
                       ) : (
-                        <div className="w-10 h-10 bg-gray-100 rounded-lg" />
+                        <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                          <FaImage className="h-4 w-4 text-gray-300" />
+                        </div>
                       )}
                       <div>
                         <p className="font-semibold text-gray-900 line-clamp-1">{p.name}</p>
@@ -139,8 +446,28 @@ function ProductsTab({ adminToken }) {
                     {p.is_featured ? <Badge variant="info">Featured</Badge> : <span className="text-gray-300">—</span>}
                   </td>
                   <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => setVariantsProduct(p)}
+                      title="Manage sizes & stock"
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition"
+                    >
+                      <FaBoxes className="h-3 w-3" />
+                      Sizes
+                    </button>
+                    <button
+                      onClick={() => setImageProduct(p)}
+                      title="Add / manage photos"
+                      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+                        p.main_image_url
+                          ? "text-gray-400 hover:text-indigo-600 hover:bg-indigo-50"
+                          : "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
+                      }`}
+                    >
+                      <FaCamera className="h-3 w-3" />
+                      {p.main_image_url ? "Photos" : "Add Photo"}
+                    </button>
                     <button onClick={() => { setEditProduct(p); setForm({ name:p.name, price:p.price, category_id:p.category_id, description:p.description, is_featured:p.is_featured }); setShowForm(true); }}
-                      className="p-2 text-gray-400 hover:text-gray-700 transition">
+                      className="p-2 text-gray-400 hover:text-gray-700 transition ml-1">
                       <FaEdit className="h-3.5 w-3.5" />
                     </button>
                     <button onClick={() => { if(window.confirm("Delete this product?")) deleteProduct(p.id, { onSuccess:()=>toast.success("Deleted"), onError:(e)=>toast.error(e.message) }); }}
@@ -174,6 +501,14 @@ function ProductsTab({ adminToken }) {
           </button>
         </form>
       </Modal>
+
+      {imageProduct && (
+        <ProductImageModal product={imageProduct} onClose={() => setImageProduct(null)} />
+      )}
+
+      {variantsProduct && (
+        <ProductVariantsModal product={variantsProduct} onClose={() => setVariantsProduct(null)} />
+      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaChevronLeft, FaChevronRight, FaExpand } from "react-icons/fa";
+import { FaChevronLeft, FaChevronRight, FaExpand, FaImage } from "react-icons/fa";
 
 export default function ProductGallery({ images = [], mainImage }) {
-  const allImages = mainImage
-    ? [mainImage, ...images.filter((img) => img !== mainImage)]
-    : images;
+  const allImages = [
+    ...(mainImage ? [mainImage] : []),
+    ...images.filter((img) => img && img !== mainImage),
+  ].filter(Boolean);
 
   const [active, setActive] = useState(0);
   const [zoomed, setZoomed] = useState(false);
@@ -15,6 +16,16 @@ export default function ProductGallery({ images = [], mainImage }) {
   const next = () => setActive((i) => (i === allImages.length - 1 ? 0 : i + 1));
 
   const src = allImages[active];
+
+  // No images at all — show a clean placeholder
+  if (allImages.length === 0) {
+    return (
+      <div className="rounded-2xl bg-gray-100 aspect-[4/5] flex flex-col items-center justify-center gap-3 text-gray-300">
+        <FaImage className="h-16 w-16" />
+        <p className="text-sm font-medium">No photo yet</p>
+      </div>
+    );
+  }
 
   return (
     <>

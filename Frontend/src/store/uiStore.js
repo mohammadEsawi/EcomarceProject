@@ -16,17 +16,14 @@ export const useUiStore = create((set, get) => ({
   // Filters (Collections page)
   filters: {
     category: '',
-    brand:    '',
-    gender:   '',
     minPrice: '',
     maxPrice: '',
     sizes:    [],
-    colors:   [],
     sort:     'newest',
     inStock:  false,
   },
-  setFilter:   (key, val) => set((s) => ({ filters: { ...s.filters, [key]: val } })),
-  resetFilters: ()        => set({ filters: { category: '', brand: '', gender: '', minPrice: '', maxPrice: '', sizes: [], colors: [], sort: 'newest', inStock: false } }),
+  setFilter:    (key, val) => set((s) => ({ filters: { ...s.filters, [key]: val } })),
+  resetFilters: ()         => set({ filters: { category: '', minPrice: '', maxPrice: '', sizes: [], sort: 'newest', inStock: false } }),
 
   // Mobile sidebar
   mobileSidebarOpen: false,

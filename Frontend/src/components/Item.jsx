@@ -2,11 +2,13 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaStar } from 'react-icons/fa';
 import { motion } from 'framer-motion';
+import { imgUrl } from '../lib/imageUrl';
 
 const Item = ({ product }) => {
   // Handle both old (_id) and new (id) API formats
   const productId = product.id || product._id;
-  const imageUrl = product.main_image_url || product.image?.[0] || '/placeholder.jpg';
+  if (!productId) return null;
+  const imageUrl = imgUrl(product.main_image_url || product.image?.[0]) || '/placeholder.jpg';
   const price = product.discount_price || product.price;
   const originalPrice = product.discount_price ? product.price : null;
   const status = product.status || 'available';
@@ -31,7 +33,7 @@ const Item = ({ product }) => {
           src={imageUrl}
           alt={product.name}
           className="w-full object-cover aspect-[3/4] rounded-xl transition-transform duration-500 hover:scale-105"
-          onError={(e) => { e.target.src = 'https://placehold.co/300x400?text=No+Image'; }}
+          onError={(e) => { e.target.style.display = 'none'; }}
         />
         {statusBadge && (
           <span className={`absolute top-2 left-2 text-xs font-semibold px-2 py-1 rounded-full ${statusBadge.className}`}>
