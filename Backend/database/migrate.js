@@ -9,13 +9,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 async function migrate() {
-  const client = new Client({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'ecommerce_db',
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD,
-  });
+  const clientConfig = process.env.DATABASE_URL
+    ? { connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } }
+    : {
+        host:     process.env.DB_HOST     || 'localhost',
+        port:     process.env.DB_PORT     || 5432,
+        database: process.env.DB_NAME     || 'ecommerce_db',
+        user:     process.env.DB_USER     || 'postgres',
+        password: process.env.DB_PASSWORD,
+      };
+  const client = new Client(clientConfig);
 
   try {
     await client.connect();

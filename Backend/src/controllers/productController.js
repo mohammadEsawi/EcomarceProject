@@ -9,6 +9,7 @@
 
 import { query, withTransaction } from '../config/database.js';
 import * as respond from '../utils/apiResponse.js';
+import { getFileUrl } from '../middleware/upload.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -538,7 +539,7 @@ export async function uploadProductImages(req, res, next) {
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i];
         // Build a server-relative URL; adjust the path prefix to match your static serving setup.
-        const imageUrl = `/uploads/${file.filename}`;
+        const imageUrl = getFileUrl(file);
         const isMain = i === 0 && (isFirstUpload || forceMain);
 
         const { rows } = await client.query(
